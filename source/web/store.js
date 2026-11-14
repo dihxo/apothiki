@@ -1,6 +1,6 @@
 /* ===================== ARTIFACT BACKEND (κοινόχρηστη βάση μέσα στο Claude) ===================== */
 'use strict';
-const COLLS = ['categories','products','units','customers','orders','maintenance','settings'];
+const COLLS = ['categories','products','units','customers','orders','maintenance','crew','settings'];
 const AS = { db:null, user:null, dl:null, assets:null };
 const sleep = ms => new Promise(r=>setTimeout(r,ms));
 

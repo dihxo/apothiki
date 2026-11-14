@@ -426,3 +426,16 @@ input[type=checkbox],input[type=radio]{accent-color:var(--brand-d)}
 .minst{display:flex;align-items:center;gap:10px;margin-bottom:14px;background:#fff;border:1px solid var(--brand)}
 .minst img{width:40px;height:40px;border-radius:10px}
 @media(max-width:900px){body.whmode #toast{bottom:auto!important;top:calc(12px + env(safe-area-inset-top))}}
+/* ---------- συνεργείο ---------- */
+.tag.crew-staff{background:var(--pri-soft);color:var(--dark)}
+.crow{display:flex;align-items:center;gap:12px;padding:12px 16px;border-bottom:1px solid var(--line)}
+.crow-r{text-align:right;flex:none}
+.crew-sum{display:flex;flex-wrap:wrap;gap:6px 22px;justify-content:flex-end;padding:12px 16px;font-size:13.5px;color:var(--muted)}
+.crew-sum b{color:var(--ink)}.crew-sum b.late{color:var(--red)}
+.crewcal td{vertical-align:top;padding:4px!important;min-width:44px}
+.crewcal td.clash{background:var(--red-s)}
+.crewcal th.we{color:var(--faint)}
+.cchip{display:block;font-size:11px;font-weight:700;border-radius:5px;padding:2px 4px;margin:1px 0;text-align:center;text-decoration:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--dark);background:var(--pri-soft)}
+.cchip.st-reserved{background:#dbeafe;color:#1e40af}.cchip.st-started{background:#fde68a;color:#78350f}.cchip.st-concept,.cchip.st-option{background:var(--gray-s);color:var(--muted)}
+.cchip.off{background:#fee2e2;color:#991b1b;font-weight:600}
+@media(max-width:700px){.crewcal .nm{min-width:130px;max-width:150px}}

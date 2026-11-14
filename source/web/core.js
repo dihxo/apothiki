@@ -1,7 +1,7 @@
 /* ===================== CORE: state, api, helpers, availability ===================== */
 'use strict';
 const D = { // server data
-  version: 0, categories:{}, products:{}, units:{}, customers:{}, orders:{}, maintenance:{}, settings:{}, users:{}, counters:{}
+  version: 0, categories:{}, products:{}, units:{}, customers:{}, orders:{}, maintenance:{}, crew:{}, settings:{}, users:{}, counters:{}
 };
 const UI = {
   me:null, ready:false, online:true, route:'dashboard',
@@ -67,7 +67,7 @@ async function api(path, body, method){
 }
 async function loadState(){
   const s = await api('/api/state');
-  for(const k of ['categories','products','units','customers','orders','maintenance','settings','users']){
+  for(const k of ['categories','products','units','customers','orders','maintenance','crew','settings','users']){
     const m={}; for(const d of (s.data[k]||[])) if(d&&d.id) m[d.id]=d; D[k]=m;
   }
   D.counters = s.counters||{}; D.version = s.version; bump();
@@ -218,12 +218,29 @@ function productExtra(p){
   return '';
 }
 function priceLabel(p){ const pr=productPrice(p); if(p.priceType==='flat') return money(pr); const ex=productExtra(p); return ex===''?money(pr)+'/ημ.':`${money(pr)} 1η ημ. · ${money(ex)} επόμ.`; }
+/* ---------- συνεργείο ---------- */
+const CREW_ROLES=['Ηχολήπτης','Τεχνικός ήχου','Φωτιστής','Τεχνικός φωτισμού','Τεχνικός video / LED','Rigger','Stage hand','Οδηγός','Βοηθός','Υπεύθυνος παραγωγής','Άλλο'];
+const PAYT={day:'ανά ημέρα', hour:'ανά ώρα', flat:'κατ\' αποκοπή'};
+function crewHours(a){ const f=(a.from||'').split(':'), t=(a.to||'').split(':'); if(f.length<2||t.length<2) return 8; let h=(+t[0]+t[1]/60)-(+f[0]+f[1]/60); if(h<=0) h+=24; return Math.round(h*100)/100; }
+function crewDays(a){ return Math.max(1, diffDays(a.start, a.end||a.start)+1); }
+function crewQty(basis, a){ return basis==='hour' ? crewHours(a)*crewDays(a) : (basis==='flat' ? 1 : crewDays(a)); }
+function crewCost(a){ const p=D.crew[a.cid]||{}; if(a.cost!==undefined&&a.cost!==''&&a.cost!==null) return r2(num(a.cost)); return r2(num(p.cost)*crewQty(p.payType||'day',a)); }
+function crewCharge(a){ if(a.bill===false) return 0; const p=D.crew[a.cid]||{}; if(a.charge!==undefined&&a.charge!==''&&a.charge!==null) return r2(num(a.charge)); return r2(num(p.rate)*crewQty(p.payType||'day',a)); }
+const CREW_ST=['concept','option','reserved','started'];
+function crewBusy(cid, start, end, exceptOrder, exceptAid){ // συγκρούσεις: άλλες παραγγελίες ή μη διαθεσιμότητα
+  const out=[]; end=end||start;
+  for(const o of Object.values(D.orders)){ if(!CREW_ST.includes(o.status)) continue;
+    for(const a of o.crew||[]){ if(a.cid!==cid) continue; if(o.id===exceptOrder&&a.id===exceptAid) continue; const s=a.start, e=a.end||a.start; if(s<=end&&e>=start) out.push({type:'order', order:o, a}); } }
+  const p=D.crew[cid]; for(const x of (p&&p.off)||[]){ if(x.start<=end&&(x.end||x.start)>=start) out.push({type:'off', off:x}); }
+  return out;
+}
 function orderTotals(o){
   const days=orderDays(o); let sub=0;
   for(const l of o.lines||[]) sub+=lineTotal(l,days);
-  sub=r2(sub); const disc=r2(sub*num(o.discount)/100); const net=r2(sub-disc); const vr=(o.vatRate!==undefined&&o.vatRate!==''&&o.vatRate!==null)?num(o.vatRate):vatRate(); const vat=r2(net*vr/100);
+  const equip=r2(sub); let crewCh=0, crewCo=0; for(const a of o.crew||[]){ crewCh+=crewCharge(a); crewCo+=crewCost(a); }
+  crewCh=r2(crewCh); crewCo=r2(crewCo); sub=r2(equip+crewCh); const disc=r2(sub*num(o.discount)/100); const net=r2(sub-disc); const vr=(o.vatRate!==undefined&&o.vatRate!==''&&o.vatRate!==null)?num(o.vatRate):vatRate(); const vat=r2(net*vr/100);
   const total=r2(net+vat); const paid=r2((o.payments||[]).reduce((s,p)=>s+num(p.amount),0));
-  return {days, sub, disc, net, vat, vr, total, deposit:num(o.deposit), paid, due:r2(total-paid)};
+  return {days, equip, crewCharge:crewCh, crewCost:crewCo, sub, disc, net, vat, vr, total, deposit:num(o.deposit), paid, due:r2(total-paid)};
 }
 function productPrice(p){
   if(!p) return 0;

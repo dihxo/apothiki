@@ -22,6 +22,7 @@ const IC = {
   doc:'<path d="M7 3h7l5 5v13H7z"/><path d="M14 3v5h5"/>',
   truck:'<path d="M2 6h11v10H2zM13 9h4l4 4v3h-8z"/><circle cx="6" cy="18" r="2"/><circle cx="17" cy="18" r="2"/>',
   back:'<path d="M15 5l-7 7 7 7"/>',
+  crew:'<path d="M5 12a7 7 0 0 1 14 0v1H5z"/><path d="M12 5v4M3.5 13h17"/><path d="M7 16.5a5 5 0 0 0 10 0"/>',
   check:'<path d="M5 12l5 5 9-10"/>'
 };
 const svg = (k, cls='') => `<svg viewBox="0 0 24 24" class="${cls}">${IC[k]}</svg>`;
@@ -75,6 +76,7 @@ function navHTML(){
     a('wh','truck','Λειτουργία αποθήκης','',['wh-'])+'<hr>'+
     a('orders','orders','Παραγγελίες', (pick+late)?`<span class="cnt">${pick+late}</span>`:'', ['order-'])+
     a('customers','users','Πελάτες','',['customer-'])+
+    a('crew','crew','Συνεργείο')+
     a('products','box','Εξοπλισμός','',['product-','categories'])+
     a('maintenance','wrench','Συντήρηση', mnt?`<span class="cnt" style="background:var(--orange)">${mnt}</span>`:'')+
     a('documents','doc','Έγγραφα')+'<hr>'+

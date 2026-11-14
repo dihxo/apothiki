@@ -206,6 +206,7 @@ VIEWS.order = id => {
         ${d.lines.length?`<div class="tw"><table><thead><tr><th class="ocol-name">Προϊόν</th><th>Διαθέσιμα</th><th>Ποσότητα</th><th>Χρέωση</th><th>Έκπτ.</th><th class="num">Σύνολο</th><th></th></tr></thead><tbody>${lineRows}</tbody></table></div>`
         :'<div class="empty" style="padding:30px">Δεν έχουν προστεθεί προϊόντα ακόμη.</div>'}
         <div class="sum" style="padding:12px 16px;border-top:1px solid var(--line);max-width:360px;margin-left:auto">
+          ${tt.crewCharge?`<div><span class="muted">Εξοπλισμός</span><span>${money(tt.equip)}</span></div><div><span class="muted">Συνεργείο</span><span>${money(tt.crewCharge)}</span></div>`:''}
           <div><span class="muted">Υποσύνολο</span><span>${money(tt.sub)}</span></div>
           <div><span class="muted">Έκπτωση <input type="number" class="pct" min="0" max="100" step="0.01" data-o="discount" value="${esc(d.discount||'')}" placeholder="0" ${ro?'disabled':''} style="padding:3px 6px"> %</span><span>−${money(tt.disc)}</span></div>
           <div><span class="muted">Καθαρή αξία</span><span>${money(tt.net)}</span></div>
@@ -214,6 +215,7 @@ VIEWS.order = id => {
           <div><span class="muted">Εγγύηση</span><span><input type="number" class="price" min="0" step="1" data-o="deposit" value="${esc(d.deposit||'')}" placeholder="0" ${ro?'disabled':''} style="padding:3px 6px"> €</span></div>
         </div>
       </div>
+      ${crewCard(d,ro)}
       ${showFlow?flowCard(d):''}
     </div>
     <div class="grid" style="align-content:start">
@@ -448,11 +450,14 @@ function printOrderDoc(o, kind){
     body=`<table><thead><tr><th>Κωδικός</th><th>Περιγραφή</th><th>Σειριακοί / τεμάχια</th><th class="r">Ποσ.</th><th class="r">✓ Αποστ.</th><th class="r">✓ Επιστρ.</th></tr></thead><tbody>${
       Object.entries(need).map(([pid,q])=>{ const p=D.products[pid]; const us=(o.picked?.units||[]).filter(id=>D.units[id]?.productId===pid).map(id=>D.units[id].code+(D.units[id].serial?' ('+D.units[id].serial+')':'')).join(', ');
         return `<tr><td class="mono">${esc(p?.sku)}</td><td>${esc(p?.name)}${p?.location?`<br><small class="muted">📍 ${esc(p.location)}</small>`:''}</td><td style="font-size:8.5pt">${esc(us)}</td><td class="r">${q}</td><td class="r">☐</td><td class="r">☐</td></tr>`; }).join('')}</tbody></table>
+      ${(o.crew||[]).length?`<h3 style="margin:6mm 0 0;font-size:11pt">Συνεργείο</h3><table><thead><tr><th>Όνομα</th><th>Ρόλος</th><th>Ημέρες</th><th>Ώρες</th><th>Τηλέφωνο</th></tr></thead><tbody>${(o.crew||[]).map(a=>{ const c=D.crew[a.cid]||{}; return `<tr><td>${esc(c.name||'')}</td><td>${esc(a.role||'')}</td><td>${fmtD(a.start)}${a.end&&a.end!==a.start?' → '+fmtD(a.end):''}</td><td>${esc(a.from||'')}–${esc(a.to||'')}</td><td>${esc(c.phone||'')}</td></tr>`; }).join('')}</tbody></table>`:''}
       ${o.notes?`<p><b>Σημειώσεις:</b> ${esc(o.notes)}</p>`:''}
       <div class="sig"><div>Παρέδωσε</div><div>Παρέλαβε (${esc(c.name||c.company||'πελάτης')})</div><div>Επιστροφή — έλεγχος</div></div>`;
   } else {
     const lines=o.lines.map(l=>{ const p=D.products[l.pid]; return `<tr><td>${esc(p?p.name:l.name)}${l.note?`<br><small class="muted">${esc(l.note)}</small>`:''}${p&&p.kind==='bundle'?`<br><small class="muted">${(p.components||[]).map(c=>esc(prodName(c.pid))+' ×'+num(c.qty)).join(', ')}</small>`:''}</td><td class="r">${num(l.qty)}</td><td class="r">${money(l.price)}${l.priceType==='flat'?'':'/ημ.'}${hasExtra(l)&&tt.days>1?`<br><small class="muted">επόμ. ${money(l.extraPrice)}/ημ.</small>`:''}</td><td class="r">${l.priceType==='flat'?'—':tt.days}</td><td class="r">${num(l.discount)?num(l.discount)+'%':''}</td><td class="r">${money(lineTotal(l,tt.days))}</td></tr>`; }).join('');
-    body=`<table><thead><tr><th>Περιγραφή</th><th class="r">Ποσ.</th><th class="r">Τιμή</th><th class="r">Ημέρες</th><th class="r">Έκπτ.</th><th class="r">Αξία</th></tr></thead><tbody>${lines}</tbody></table>
+    const crewRows=(o.crew||[]).filter(a=>a.bill!==false&&crewCharge(a)>0).map(a=>{ const c=D.crew[a.cid]||{}; const b=c.payType||'day'; const qn=crewQty(b,a); const manual=a.charge!==undefined&&a.charge!==''&&a.charge!==null;
+      return `<tr><td>Τεχνικό προσωπικό — ${esc(a.role||c.role||'')}<br><small class="muted">${fmtD(a.start)}${a.end&&a.end!==a.start?' → '+fmtD(a.end):''} · ${esc(a.from||'')}–${esc(a.to||'')}</small></td><td class="r">1</td><td class="r">${manual||b==='flat'?money(crewCharge(a)):money(num(c.rate))+(b==='hour'?'/ώρα':'')}</td><td class="r">${b==='flat'||manual?'—':(b==='hour'?qn+' ώρ.':qn)}</td><td class="r">—</td><td class="r">${money(crewCharge(a))}</td></tr>`; }).join('');
+    body=`<table><thead><tr><th>Περιγραφή</th><th class="r">Ποσ.</th><th class="r">Τιμή</th><th class="r">Ημέρες</th><th class="r">Έκπτ.</th><th class="r">Αξία</th></tr></thead><tbody>${lines}${crewRows}</tbody></table>
     <div class="tot"><div><span>Υποσύνολο</span><span>${money(tt.sub)}</span></div>${tt.disc?`<div><span>Έκπτωση ${num(o.discount)}%</span><span>−${money(tt.disc)}</span></div>`:''}<div><span>Καθαρή αξία</span><span>${money(tt.net)}</span></div><div><span>ΦΠΑ ${tt.vr}%</span><span>${money(tt.vat)}</span></div><div class="g"><span>Σύνολο</span><span>${money(tt.total)}</span></div>${tt.deposit?`<div><span>Εγγύηση</span><span>${money(tt.deposit)}</span></div>`:''}</div>
     ${o.notes?`<p><b>Σημειώσεις:</b> ${esc(o.notes)}</p>`:''}
     ${kind==='quote'?`<p class="muted">Η προσφορά ισχύει για ${esc(s.quoteValidity||15)} ημέρες. Η διαθεσιμότητα του εξοπλισμού επιβεβαιώνεται με την κράτηση.</p>`:''}
