@@ -3,6 +3,7 @@ UI.crewTab = UI.crewTab || 'people';
 UI.crewType = UI.crewType || 'all';
 UI.crewQ = UI.crewQ || '';
 
+function crewAge(b){ const d=new Date(b+'T00:00:00'), n=new Date(); let a=n.getFullYear()-d.getFullYear(); if(n.getMonth()<d.getMonth()||(n.getMonth()===d.getMonth()&&n.getDate()<d.getDate())) a--; return a; }
 function crewName(id){ const c=D.crew[id]; return c ? c.name : '—'; }
 function crewSorted(list){ return sortBy(list||Object.values(D.crew), c=>(c.type==='freelance'?'1':'0')+(c.name||'')); }
 function crewAv(c, size=34){ const n=c&&c.name||'?'; return `<span class="cav" style="background:${c&&c.color||avColor(n)};width:${size}px;height:${size}px;margin:0;flex:none">${esc(initials(n))}</span>`; }
@@ -18,7 +19,7 @@ VIEWS.crew = () => {
 function crewPeople(){
   const t=today(); const all=Object.values(D.crew);
   let list=all.filter(c=>UI.crewType==='all'?!c.inactive:(UI.crewType==='inactive'?c.inactive:(!c.inactive&&(c.type||'staff')===UI.crewType)));
-  const q=UI.crewQ.trim().toLowerCase(); if(q) list=list.filter(c=>[c.name,c.role,c.phone,c.email,c.notes].some(v=>(v||'').toLowerCase().includes(q)));
+  const q=UI.crewQ.trim().toLowerCase(); if(q) list=list.filter(c=>[c.name,c.role,c.phone,c.email,c.notes,c.idNumber].some(v=>(v||'').toLowerCase().includes(q)));
   list=crewSorted(list);
   const next={}; for(const o of Object.values(D.orders)){ if(!CREW_ST.includes(o.status)) continue; for(const a of o.crew||[]){ if((a.end||a.start)<t) continue; const n=next[a.cid]; if(!n||a.start<n.a.start) next[a.cid]={a,o}; } }
   const busyToday=c=>crewBusy(c.id,t,t).length>0;
@@ -115,6 +116,8 @@ function drawCrewModal(){
     <div class="f2"><label class="f">Ονοματεπώνυμο *<input type="text" data-cw="name" value="${esc(c.name)}" autofocus ${ro?'disabled':''}></label>
       <label class="f">Ειδικότητα<input type="text" data-cw="role" value="${esc(c.role)}" list="crewRoles" placeholder="π.χ. Ηχολήπτης" ${ro?'disabled':''}></label></div>
     <datalist id="crewRoles">${CREW_ROLES.map(r=>`<option value="${esc(r)}">`).join('')}</datalist>
+    <div class="f2"><label class="f">Αριθμός ταυτότητας<input type="text" data-cw="idNumber" value="${esc(c.idNumber||'')}" placeholder="π.χ. ΑΒ 123456" autocomplete="off" ${ro?'disabled':''}></label>
+      <label class="f">Ημερομηνία γέννησης${c.birthDate?` <span class="faint">(${crewAge(c.birthDate)} ετών)</span>`:''}<input type="date" data-cw="birthDate" value="${esc(c.birthDate||'')}" max="${today()}" ${ro?'disabled':''}></label></div>
     <div class="f2"><label class="f">Τηλέφωνο<input type="tel" data-cw="phone" value="${esc(c.phone)}" ${ro?'disabled':''}></label><label class="f">Email<input type="email" data-cw="email" value="${esc(c.email)}" ${ro?'disabled':''}></label></div>
     <div class="f3"><label class="f">Αμοιβή<select data-cw="payType" ${ro?'disabled':''}>${Object.entries(PAYT).map(([k,l])=>`<option value="${k}" ${c.payType===k?'selected':''}>${l}</option>`).join('')}</select></label>
       <label class="f">Κόστος για εμάς €<input type="number" min="0" step="0.01" data-cw="cost" value="${esc(c.cost)}" ${ro?'disabled':''}></label>
@@ -137,7 +140,7 @@ ACT['cw-set']=el=>{ M.c[el.dataset.k]=el.dataset.v; drawCrewModal(); };
 ACT['cw-off-add']=()=>{ const s=$('#offS').value, e=$('#offE').value||s; if(!s) return toast('Διάλεξε ημερομηνία.', true); M.c.off.push({start:s<e?s:e, end:s<e?e:s, note:$('#offN').value.trim()}); M.c.off=sortBy(M.c.off,x=>x.start); drawCrewModal(); };
 ACT['cw-off-del']=el=>{ M.c.off.splice(+el.dataset.i,1); drawCrewModal(); };
 ACT['cw-save']=async()=>{ const c=M.c; c.name=(c.name||'').trim(); if(!c.name) return toast('Συμπλήρωσε όνομα.', true);
-  const doc={name:c.name, type:c.type||'staff', role:(c.role||'').trim(), phone:(c.phone||'').trim(), email:(c.email||'').trim(), payType:c.payType||'day', cost:c.cost===''?'':num(c.cost), rate:c.rate===''?'':num(c.rate), notes:c.notes||'', off:c.off||[], inactive:!!c.inactive, color:c.color||''};
+  const doc={name:c.name, type:c.type||'staff', role:(c.role||'').trim(), phone:(c.phone||'').trim(), email:(c.email||'').trim(), idNumber:(c.idNumber||'').trim().toUpperCase(), birthDate:c.birthDate||'', payType:c.payType||'day', cost:c.cost===''?'':num(c.cost), rate:c.rate===''?'':num(c.rate), notes:c.notes||'', off:c.off||[], inactive:!!c.inactive, color:c.color||''};
   if(await put('crew', c.id||uid('cr'), doc, 'Αποθηκεύτηκε: '+c.name)) closeModal(); };
 ACT['cw-del']=()=>{ const c=M.c; const used=Object.values(D.orders).some(o=>(o.crew||[]).some(a=>a.cid===c.id));
   confirmBox(`Διαγραφή «${c.name}»;`, used?'Υπάρχει σε παραγγελίες — καλύτερα σήμανέ τον «Ανενεργό» για να μείνει το ιστορικό.':'Θα διαγραφεί οριστικά.', 'Διαγραφή', async()=>{ await del('crew', c.id, 'Διαγράφηκε: '+c.name); }); };
