@@ -391,7 +391,7 @@ function openRangePicker(o){ // o: {start,end,which:'start'|'end',onPick(start,e
 function closeRangePicker(){ DP=null; const ov=document.getElementById('dpov'); if(ov) ov.innerHTML='', ov.classList.remove('on'); }
 function drawRangePicker(){
   const ov=document.getElementById('dpov'); if(!ov||!DP) return;
-  const today=dpISO(new Date()), months=window.innerWidth<760?1:2;
+  const today=dpISO(new Date()), months=1;
   const month=(y,m)=>{ const first=new Date(y,m,1), off=(first.getDay()+6)%7, n=new Date(y,m+1,0).getDate(); let cells='';
     for(let i=0;i<off;i++) cells+='<span></span>';
     for(let d=1; d<=n; d++){ const v=dpISO(new Date(y,m,d)); const c=[v===today?'today':'', v===DP.a?'st':'', v===DP.b?'end':'', (v>DP.a&&v<DP.b)?'inr':'', (new Date(y,m,d).getDay()%6===0)?'we':''].join(' ');
