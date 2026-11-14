@@ -180,8 +180,8 @@ VIEWS.order = id => {
         </div>
         <div class="card"><h2>Παραλαβή & επιστροφή</h2>
           <div class="grid" style="gap:12px">
-            <div><div class="small muted b" style="margin-bottom:4px">Από</div><div class="row" style="flex-wrap:nowrap"><input type="date" data-o="start" value="${esc(d.start)}" ${ro?'disabled':''} style="flex:1"><input type="time" data-o="startTime" value="${esc(d.startTime)}" ${ro?'disabled':''} style="width:110px"></div></div>
-            <div><div class="small muted b" style="margin-bottom:4px">Έως</div><div class="row" style="flex-wrap:nowrap"><input type="date" data-o="end" value="${esc(d.end)}" ${ro?'disabled':''} style="flex:1"><input type="time" data-o="endTime" value="${esc(d.endTime)}" ${ro?'disabled':''} style="width:110px"></div></div>
+            <div><div class="small muted b" style="margin-bottom:4px">Από</div><div class="row" style="flex-wrap:nowrap"><button type="button" class="dpbtn" data-act="o-dp" data-which="start" ${ro?'disabled':''}>${svg('cal')}${dpLabel(d.start)}</button><input type="time" data-o="startTime" value="${esc(d.startTime)}" ${ro?'disabled':''} style="width:120px;flex:none"></div></div>
+            <div><div class="small muted b" style="margin-bottom:4px">Έως</div><div class="row" style="flex-wrap:nowrap"><button type="button" class="dpbtn" data-act="o-dp" data-which="end" ${ro?'disabled':''}>${svg('cal')}${dpLabel(d.end)}</button><input type="time" data-o="endTime" value="${esc(d.endTime)}" ${ro?'disabled':''} style="width:120px;flex:none"></div></div>
             <div class="small muted">${tt.days} ${tt.days===1?'ημέρα':'ημέρες'} χρέωσης</div>
           </div></div>
       </div>
@@ -270,6 +270,7 @@ ON_INPUT.push((el)=>{
   if(el.id==='oAdd'){ drawAddResults(el.value); return true; }
   return false;
 });
+ACT['o-dp']=el=>{ const d=UI.draft; if(!d) return; openRangePicker({start:d.start, end:d.end, which:el.dataset.which, onPick:(a,b)=>{ if(!UI.draft) return; UI.draft.start=a; UI.draft.end=b<a?a:b; dirty(); }}); };
 ON_CHANGE.push((el)=>{
   if(!UI.draft) return false;
   const d=UI.draft;

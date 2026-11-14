@@ -175,7 +175,7 @@ ACT['pm-sugg-pick']=async el=>{
 };
 
 function productModal(id, kind){
-  const p = id ? deepCopy(D.products[id]) : {id:null, kind:kind||'item', tracking:'bulk', name:'', sku:nextSku(), cat:(UI.prodCat&&D.categories[UI.prodCat])?UI.prodCat:'', qty:1, price:'', priceType:kind==='bundle'?'day':'day', replacement:'', location:'', supplier:'', notes:'', components:[], _units:1};
+  const p = id ? deepCopy(D.products[id]) : {id:null, kind:kind||'item', tracking:'bulk', name:'', sku:'', cat:(UI.prodCat&&D.categories[UI.prodCat])?UI.prodCat:'', qty:1, price:'', priceType:kind==='bundle'?'day':'day', replacement:'', location:'', supplier:'', notes:'', components:[], _units:1};
   p.components=p.components||[];
   M={type:'product', p, redraw:drawProductModal}; drawProductModal();
   if(SERVER&&!imgSrc(p)&&(p.name||'').trim().length>=3) findPhotos(false);
@@ -195,7 +195,7 @@ function drawProductModal(){
       </div>
     </div>
     ${SERVER?`<div id="imgSugg">${suggHTML()}</div>`:''}
-    <div class="f2"><label class="f">Όνομα *<input type="text" data-pm="name" value="${esc(p.name)}" autofocus placeholder="${isB?'π.χ. Σετ ήχου για 100 άτομα':'π.χ. Shure SM58'}"></label><label class="f">Κωδικός (QR) *<input type="text" data-pm="sku" value="${esc(p.sku)}" class="mono"></label></div>
+    <div class="f2"><label class="f">Όνομα *<input type="text" data-pm="name" value="${esc(p.name)}" autofocus placeholder="${isB?'π.χ. Σετ ήχου για 100 άτομα':'π.χ. Shure SM58'}"></label><label class="f">Κωδικός (QR) *<input type="text" data-pm="sku" value="${esc(p.sku)}" class="mono" placeholder="Βγαίνει από το όνομα"></label></div>
     <label class="f">Κατηγορία<select data-pm="cat">${catOptions(p.cat)}</select></label>
     ${!isB?`<div><div class="small muted b" style="margin-bottom:6px">Παρακολούθηση αποθέματος</div><div class="seg"><button class="${p.tracking!=='serial'?'on':''}" data-act="pm-set" data-k="tracking" data-v="bulk">Ποσότητα (π.χ. καλώδια)</button><button class="${p.tracking==='serial'?'on':''}" data-act="pm-set" data-k="tracking" data-v="serial">Σειριακοί αριθμοί (κάθε τεμάχιο με QR)</button></div></div>`:''}
     <div class="f3">
@@ -216,7 +216,10 @@ function drawProductModal(){
   <div class="dlg-f">${p.id?`<button class="btn dangerous" data-act="pm-del" style="margin-right:auto">Διαγραφή</button><button class="btn" data-act="pm-archive">${p.archived?'Επαναφορά':'Αρχειοθέτηση'}</button>`:''}<button class="btn" data-act="modal-close">Άκυρο</button><button class="btn pri" data-act="pm-save" data-primary>Αποθήκευση</button></div>`);
 }
 ON_INPUT.push(el=>{ if(!M) return false;
-  if(el.dataset.pm!==undefined && M.type==='product'){ M.p[el.dataset.pm]=el.value; return true; }
+  if(el.dataset.pm!==undefined && M.type==='product'){ const p=M.p; p[el.dataset.pm]=el.value;
+    if(el.dataset.pm==='sku') p._skuManual=el.value.trim()!=='';
+    if(el.dataset.pm==='name' && !p.id && !p._skuManual){ p.sku=skuFromName(el.value); const si=$('input[data-pm=sku]'); if(si) si.value=p.sku; }
+    return true; }
   if(el.dataset.pmc!==undefined){ M.p.components[+el.dataset.pmc][el.dataset.f]=el.value; return true; }
   return false; });
 ON_CHANGE.push(el=>{ if(!M) return false;
@@ -230,7 +233,7 @@ ACT['pm-set']=el=>{ M.p[el.dataset.k]=el.dataset.v; drawProductModal(); };
 ACT['pm-comp-add']=()=>{ M.p.components.push({pid:'',qty:1}); drawProductModal(); };
 ACT['pm-comp-del']=el=>{ M.p.components.splice(+el.dataset.i,1); drawProductModal(); };
 ACT['pm-save']=async()=>{
-  const p=M.p; p.name=(p.name||'').trim(); p.sku=(p.sku||'').trim();
+  const p=M.p; p.name=(p.name||'').trim(); p.sku=(p.sku||'').trim(); if(!p.sku) p.sku=skuFromName(p.name,p.id)||nextSku();
   if(!p.name) return toast('Συμπλήρωσε όνομα.', true); if(!p.sku) return toast('Συμπλήρωσε κωδικό.', true);
   const dupP=Object.values(D.products).find(x=>x.id!==p.id&&(x.sku||'').toLowerCase()===p.sku.toLowerCase());
   const dupU=Object.values(D.units).find(u=>(u.code||'').toLowerCase()===p.sku.toLowerCase());

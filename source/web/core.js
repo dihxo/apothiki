@@ -114,6 +114,14 @@ function findCode(code){
   return null;
 }
 function nextSku(){ let max=0; for(const p of Object.values(D.products)){ const m=/^EQ-(\d+)$/i.exec(p.sku||''); if(m) max=Math.max(max,+m[1]); } return 'EQ-'+String(max+1).padStart(4,'0'); }
+/* κωδικός σε μορφή Booqable: ΚΕΦΑΛΑΙΑ_ΜΕ_ΚΑΤΩ_ΠΑΥΛΑ (τα ελληνικά γίνονται λατινικά) */
+const GR2LAT={α:'A',ά:'A',β:'V',γ:'G',δ:'D',ε:'E',έ:'E',ζ:'Z',η:'I',ή:'I',θ:'TH',ι:'I',ί:'I',ϊ:'I',ΐ:'I',κ:'K',λ:'L',μ:'M',ν:'N',ξ:'X',ο:'O',ό:'O',π:'P',ρ:'R',σ:'S',ς:'S',τ:'T',υ:'Y',ύ:'Y',ϋ:'Y',ΰ:'Y',φ:'F',χ:'CH',ψ:'PS',ω:'O',ώ:'O'};
+function skuFromName(name, selfId){
+  let b=[...String(name||'').toLowerCase()].map(c=>GR2LAT[c]??c).join('').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase().replace(/[^A-Z0-9]+/g,'_').replace(/^_+|_+$/g,'').slice(0,40).replace(/_+$/,'');
+  if(!b) return '';
+  const used=new Set(); for(const p of Object.values(D.products)) if(p.id!==selfId) used.add((p.sku||'').toUpperCase()); for(const u of Object.values(D.units)) used.add((u.code||'').toUpperCase());
+  let s=b, n=2; while(used.has(s)) s=b+'_'+(n++); return s;
+}
 function nextUnitCode(p, extra=0){ let max=0; const pre=(p.sku||'U')+'-'; for(const u of Object.values(D.units)){ if(u.productId===p.id && (u.code||'').startsWith(pre)){ const n=parseInt(u.code.slice(pre.length)); if(n>max) max=n; } } return pre+String(max+1+extra).padStart(3,'0'); }
 
 /* ---------- availability engine ---------- */
@@ -350,3 +358,52 @@ let storeImage = async blob => blobToDataURL(blob); // server: αποθήκευ�
 function imgSrc(p){ return p ? (p.image || (SERVER ? p.imageUrl : '') || '') : ''; }
 function prodImg(p, size=36){ const src=imgSrc(p); const st=`width:${size}px;height:${size}px`;
   return src ? `<img src="${esc(src)}" class="pimg" style="${st}" loading="lazy" alt="">` : `<span class="pimg ph" style="${st};font-size:${Math.max(9,size/3.2)}px">${esc(initials(p&&p.name))}</span>`; }
+
+/* ---------- μεγάλο ημερολόγιο επιλογής διαστήματος (παραλαβή → επιστροφή) ---------- */
+const GR_MON=['Ιανουάριος','Φεβρουάριος','Μάρτιος','Απρίλιος','Μάιος','Ιούνιος','Ιούλιος','Αύγουστος','Σεπτέμβριος','Οκτώβριος','Νοέμβριος','Δεκέμβριος'];
+const GR_MON_S=['Ιαν','Φεβ','Μαρ','Απρ','Μαΐ','Ιουν','Ιουλ','Αυγ','Σεπ','Οκτ','Νοε','Δεκ'];
+const GR_DOW=['Κυρ','Δευ','Τρί','Τετ','Πέμ','Παρ','Σάβ'];
+function dpISO(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+function dpParse(s){ const m=/^(\d{4})-(\d\d)-(\d\d)$/.exec(s||''); return m?new Date(+m[1],+m[2]-1,+m[3]):null; }
+function dpLabel(s){ const d=dpParse(s); return d?`${GR_DOW[d.getDay()]} ${d.getDate()} ${GR_MON_S[d.getMonth()]} ${d.getFullYear()}`:'Επίλεξε ημερομηνία'; }
+let DP=null;
+function openRangePicker(o){ // o: {start,end,which:'start'|'end',onPick(start,end)}
+  const s=dpParse(o.start)||new Date(), base=new Date(s.getFullYear(), s.getMonth(), 1);
+  DP={...o, a:o.start, b:o.end, phase:o.which==='end'?1:0, view:base, hover:null};
+  let ov=document.getElementById('dpov'); if(!ov){ ov=document.createElement('div'); ov.id='dpov'; document.body.appendChild(ov);
+    ov.addEventListener('click', e=>{ const t=e.target.closest('[data-dp]'); if(e.target===ov) return closeRangePicker(); if(!t) return; const a=t.dataset.dp;
+      if(a==='prev'){ DP.view=new Date(DP.view.getFullYear(), DP.view.getMonth()-1, 1); drawRangePicker(); }
+      else if(a==='next'){ DP.view=new Date(DP.view.getFullYear(), DP.view.getMonth()+1, 1); drawRangePicker(); }
+      else if(a==='close') closeRangePicker();
+      else if(a==='today'){ const t0=new Date(); DP.view=new Date(t0.getFullYear(), t0.getMonth(), 1); drawRangePicker(); }
+      else if(a==='phase'){ DP.phase=+t.dataset.v; drawRangePicker(); }
+      else if(a==='ok'){ DP.onPick(DP.a, DP.b); closeRangePicker(); }
+      else if(a==='day'){ const v=t.dataset.v;
+        if(DP.phase===0){ DP.a=v; if(!DP.b||DP.b<v) DP.b=v; DP.phase=1; }
+        else { if(v<DP.a){ DP.a=v; } else { DP.b=v; DP.onPick(DP.a, DP.b); return closeRangePicker(); } }
+        drawRangePicker(); }
+    });
+    ov.addEventListener('mouseover', e=>{ const t=e.target.closest('[data-dp=day]'); const v=t?t.dataset.v:null; if(DP&&DP.phase===1&&v!==DP.hover){ DP.hover=v; ov.querySelectorAll('[data-dp=day]').forEach(c=>{ const x=c.dataset.v, e2=DP.hover&&DP.hover>DP.a?DP.hover:DP.b; c.classList.toggle('inr', x>DP.a&&x<e2); c.classList.toggle('end', x===e2); }); } });
+    document.addEventListener('keydown', e=>{ if(e.key==='Escape'&&DP) closeRangePicker(); });
+  }
+  drawRangePicker();
+}
+function closeRangePicker(){ DP=null; const ov=document.getElementById('dpov'); if(ov) ov.innerHTML='', ov.classList.remove('on'); }
+function drawRangePicker(){
+  const ov=document.getElementById('dpov'); if(!ov||!DP) return;
+  const today=dpISO(new Date()), months=window.innerWidth<760?1:2;
+  const month=(y,m)=>{ const first=new Date(y,m,1), off=(first.getDay()+6)%7, n=new Date(y,m+1,0).getDate(); let cells='';
+    for(let i=0;i<off;i++) cells+='<span></span>';
+    for(let d=1; d<=n; d++){ const v=dpISO(new Date(y,m,d)); const c=[v===today?'today':'', v===DP.a?'st':'', v===DP.b?'end':'', (v>DP.a&&v<DP.b)?'inr':'', (new Date(y,m,d).getDay()%6===0)?'we':''].join(' ');
+      cells+=`<button type="button" data-dp="day" data-v="${v}" class="${c}">${d}</button>`; }
+    return `<div class="dp-m"><div class="dp-mh">${GR_MON[m]} ${y}</div><div class="dp-g">${['Δε','Τρ','Τε','Πε','Πα','Σα','Κυ'].map(x=>`<b>${x}</b>`).join('')}${cells}</div></div>`; };
+  let ms=''; for(let i=0;i<months;i++){ const d=new Date(DP.view.getFullYear(), DP.view.getMonth()+i, 1); ms+=month(d.getFullYear(), d.getMonth()); }
+  const days=Math.round((dpParse(DP.b)-dpParse(DP.a))/864e5)+1;
+  ov.classList.add('on');
+  ov.innerHTML=`<div class="dp">
+    <div class="dp-top"><button type="button" data-dp="phase" data-v="0" class="dp-f${DP.phase===0?' on':''}"><small>Παραλαβή</small>${dpLabel(DP.a)}</button><span class="dp-arr">→</span><button type="button" data-dp="phase" data-v="1" class="dp-f${DP.phase===1?' on':''}"><small>Επιστροφή</small>${dpLabel(DP.b)}</button><button type="button" class="icon" data-dp="close" title="Κλείσιμο">✕</button></div>
+    <div class="dp-hint">${DP.phase===0?'Διάλεξε ημέρα <b>παραλαβής</b>':'Διάλεξε ημέρα <b>επιστροφής</b>'}</div>
+    <div class="dp-body"><button type="button" class="dp-nav" data-dp="prev">‹</button><div class="dp-ms">${ms}</div><button type="button" class="dp-nav" data-dp="next">›</button></div>
+    <div class="dp-foot"><button type="button" class="btn sm ghost" data-dp="today">Σήμερα</button><span class="muted small">${days>0?days+(days===1?' ημέρα':' ημέρες'):''}</span><button type="button" class="btn pri" data-dp="ok">Εντάξει</button></div>
+  </div>`;
+}
