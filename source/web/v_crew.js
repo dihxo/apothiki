@@ -12,7 +12,7 @@ function rateLabel(v, basis){ return num(v) ? `${money(num(v))} ${basis==='hour'
 /* ---------- σελίδα ---------- */
 VIEWS.crew = () => {
   const tabs=`<div class="tabs">${[['people','Άτομα'],['schedule','Πρόγραμμα']].map(([k,l])=>`<button class="${UI.crewTab===k?'on':''}" data-act="tab" data-k="crewTab" data-v="${k}">${l}</button>`).join('')}</div>`;
-  const head=`<div class="ph"><div><h1>Συνεργείο</h1><p class="sub">Μόνιμο προσωπικό, εξωτερικοί συνεργάτες και πρόγραμμα εργασιών</p></div>${can('staff')?`<button class="btn pri" data-act="crew-new">+ Νέο άτομο</button>`:''}</div>`;
+  const head=`<div class="ph"><div><h1>Συνεργείο</h1><p class="sub">Μόνιμο προσωπικό, εξωτερικοί συνεργάτες και πρόγραμμα εργασιών</p></div><div class="row">${can('staff')?`<button class="btn" data-act="crew-link">🔗 Σύνδεσμος για το προσωπικό</button><button class="btn pri" data-act="crew-new">+ Νέο άτομο</button>`:''}</div></div>`;
   return head+tabs+(UI.crewTab==='schedule'?crewSchedule():crewPeople());
 };
 function crewPeople(){
@@ -84,6 +84,7 @@ function drawCrewModal(){
       ${ro?'':`<div class="row" style="margin-top:6px;flex-wrap:wrap;gap:6px"><input type="date" id="offS" value="${t}" style="width:150px"><input type="date" id="offE" value="${t}" style="width:150px"><input type="text" id="offN" placeholder="π.χ. Άδεια" style="flex:1;min-width:120px"><button class="btn sm" data-act="cw-off-add">+ Προσθήκη</button></div>`}</div>
     ${c.id?`<div><div class="small muted b" style="margin:4px 0 6px">Επόμενες δουλειές (${up.length})</div>${up.length?up.slice(0,8).map(x=>`<div class="li" style="padding:5px 0"><a class="lk small" href="#order-${x.o.id}">${fmtD(x.a.start)}${x.a.end&&x.a.end!==x.a.start?'→'+fmtD(x.a.end):''} · ${esc(x.o.number)} · ${esc(custName(x.o.customerId)||x.o.name||'')}</a><span class="xs muted">${esc(x.a.role||'')} ${esc(x.a.from||'')}–${esc(x.a.to||'')}</span></div>`).join(''):'<div class="xs faint">Καμία.</div>'}
       <div class="xs muted" style="margin-top:8px">Τελευταίες 30 ημέρες: <b>${m30.length}</b> αναθέσεις · <b>${m30.reduce((s,x)=>s+crewDays(x.a),0)}</b> ημέρες · κόστος <b>${money(m30.reduce((s,x)=>s+crewCost(x.a),0))}</b></div></div>`:''}
+    ${c.id&&settings().crewToken?`<div class="row" style="gap:6px;flex-wrap:wrap;align-items:center"><span class="small muted b" style="margin-right:4px">Προσωπικός σύνδεσμος προγράμματος:</span><button class="btn sm" data-act="crew-mylink" data-id="${c.id}">Αντιγραφή</button>${navigator.share?`<button class="btn sm" data-act="crew-mylink" data-id="${c.id}" data-how="share">Κοινοποίηση…</button>`:''}${c.phone?`<a class="btn sm" href="sms:${esc(c.phone.replace(/\s/g,''))}?&body=${encodeURIComponent('Το πρόγραμμά σου στη ΔΙΗΧΟ: '+crewLinkURL(c.id))}">SMS</a><a class="btn sm" href="viber://forward?text=${encodeURIComponent('Το πρόγραμμά σου στη ΔΙΗΧΟ: '+crewLinkURL(c.id))}">Viber</a>`:''}</div>`:''}
     ${c.id&&!ro?`<label class="row" style="gap:8px;font-size:13.5px"><input type="checkbox" data-cw-ck="inactive" ${c.inactive?'checked':''}> Ανενεργός (δεν εμφανίζεται στις αναθέσεις)</label>`:''}
   </div>
   <div class="dlg-f">${c.id&&can('admin')?'<button class="btn dangerous" data-act="cw-del" style="margin-right:auto">Διαγραφή</button>':''}<button class="btn" data-act="modal-close">${ro?'Κλείσιμο':'Άκυρο'}</button>${ro?'':'<button class="btn pri" data-act="cw-save" data-primary>Αποθήκευση</button>'}</div>`);
@@ -153,3 +154,30 @@ ACT['asg-save']=()=>{ const a=M.a, d=UI.draft; if(!d) return closeModal(); if(!a
   a.charge=a.charge===''?'':num(a.charge); a.cost=a.cost===''?'':num(a.cost);
   d.crew=d.crew||[]; if(M.idx===null) d.crew.push(a); else d.crew[M.idx]=a;
   d.crew=sortBy(d.crew,x=>x.start+(x.from||'')); closeModal(); dirty(); };
+
+/* ---------- σύνδεσμος προγράμματος για το προσωπικό (χωρίς τιμές) ---------- */
+function crewLinkURL(cid){ const t=settings().crewToken; return t ? location.origin+'/crew.html?k='+t+(cid?'#'+cid:'') : ''; }
+async function crewTokenNew(){ const tok=[...crypto.getRandomValues(new Uint8Array(18))].map(b=>b.toString(16).padStart(2,'0')).join('');
+  return put('settings','company',{...settings(), crewToken:tok}, 'Δημιουργήθηκε νέος σύνδεσμος προγράμματος'); }
+ACT['crew-link']=async()=>{
+  if(!settings().crewToken){ if(!can('admin')) return toast('Ο σύνδεσμος δεν έχει δημιουργηθεί ακόμη — ζήτησέ το από διαχειριστή.', true); if(!await crewTokenNew()) return; }
+  drawCrewLink();
+};
+function drawCrewLink(){
+  const url=crewLinkURL(); M={type:'crewlink', redraw:drawCrewLink};
+  openModal(`<div class="dlg-h"><h2>Σύνδεσμος προγράμματος για το προσωπικό</h2><button class="icon" data-act="modal-close">✕</button></div>
+  <div class="dlg-b">
+    <div class="small">Στείλε αυτόν τον σύνδεσμο στους τεχνικούς σου. Τον ανοίγουν στο κινητό, πατάνε <b>το όνομά τους</b> και βλέπουν <b>μόνο το πρόγραμμά τους</b>: ημέρες, ώρες, χώρο, ρόλο, ομάδα και εξοπλισμό. <b>Δεν βλέπουν τιμές</b>, κόστη ή άλλα στοιχεία. Το κινητό θυμάται ποιος είναι, οπότε την επόμενη φορά ανοίγει κατευθείαν το δικό του πρόγραμμα.</div>
+    <div class="row" style="flex-wrap:nowrap"><input type="text" readonly value="${esc(url)}" id="crewUrl" class="mono" style="flex:1;font-size:12.5px" onclick="this.select()"><button class="btn" data-act="crew-link-copy" data-url="${esc(url)}">Αντιγραφή</button></div>
+    <div class="row" style="gap:8px;flex-wrap:wrap">${navigator.share?`<button class="btn" data-act="crew-link-share" data-url="${esc(url)}">Κοινοποίηση…</button>`:''}<a class="btn" href="${esc(url)}" target="_blank" rel="noopener">Άνοιγμα ↗</a><button class="btn" data-act="crew-link-print">🖨 Εκτύπωση με QR (για την αποθήκη)</button></div>
+    <div style="display:flex;gap:16px;align-items:center"><div style="width:130px;flex:none">${qrSVG(url,130)}</div><div class="xs muted">Μπορούν και να σκανάρουν αυτό το QR με την κάμερα του κινητού.<br><br>Κάθε άτομο έχει και <b>προσωπικό σύνδεσμο</b> που ανοίγει κατευθείαν το δικό του πρόγραμμα — θα τον βρεις στην καρτέλα του.</div></div>
+    ${can('admin')?`<div class="banner orange" style="margin:0"><div class="grow small">Αν ο σύνδεσμος βρεθεί σε λάθος χέρια, φτιάξε νέο — ο παλιός σταματά αμέσως να λειτουργεί και στέλνεις τον νέο στο προσωπικό.</div><button class="btn sm" data-act="crew-link-new">Νέος σύνδεσμος</button></div>`:''}
+  </div><div class="dlg-f"><button class="btn pri" data-act="modal-close">Κλείσιμο</button></div>`);
+}
+async function copyText(t){ try{ await navigator.clipboard.writeText(t); toast('Αντιγράφηκε'); }catch(e){ const i=document.createElement('textarea'); i.value=t; document.body.appendChild(i); i.select(); try{ document.execCommand('copy'); toast('Αντιγράφηκε'); }catch(_){ toast('Αντίγραψε το κείμενο χειροκίνητα.', true); } i.remove(); } }
+ACT['crew-link-copy']=el=>copyText(el.dataset.url);
+ACT['crew-link-share']=async el=>{ try{ await navigator.share({title:'Πρόγραμμα συνεργείου', text:'Το πρόγραμμά σου στη ΔΙΗΧΟ:', url:el.dataset.url}); }catch(e){} };
+ACT['crew-link-new']=()=>confirmBox('Νέος σύνδεσμος;', 'Ο τωρινός σύνδεσμος θα σταματήσει να λειτουργεί και θα χρειαστεί να στείλεις τον νέο σε όλο το προσωπικό.', 'Δημιουργία νέου', async()=>{ if(await crewTokenNew()) drawCrewLink(); });
+ACT['crew-link-print']=()=>{ const url=crewLinkURL();
+  printHTML('Πρόγραμμα συνεργείου', `<div style="text-align:center;padding-top:20mm">${LOGO?`<img src="${LOGO}" style="height:30mm">`:''}<h1 style="font-size:28pt;margin:14mm 0 4mm">Το πρόγραμμά σου</h1><div style="font-size:14pt;color:#555">Σκάναρε με την κάμερα του κινητού και πάτα το όνομά σου</div><div style="width:110mm;margin:12mm auto">${qrSVG(url,400)}</div><div style="font-size:9pt;color:#888;word-break:break-all">${esc(url)}</div></div>`); };
+ACT['crew-mylink']=async el=>{ const url=crewLinkURL(el.dataset.id); if(!url) return toast('Δημιούργησε πρώτα τον σύνδεσμο από το «🔗 Σύνδεσμος για το προσωπικό».', true); if(el.dataset.how==='share'&&navigator.share){ try{ await navigator.share({title:'Το πρόγραμμά σου', url}); }catch(e){} } else copyText(url); };

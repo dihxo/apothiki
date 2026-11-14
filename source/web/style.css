@@ -439,3 +439,5 @@ input[type=checkbox],input[type=radio]{accent-color:var(--brand-d)}
 .cchip.st-reserved{background:#dbeafe;color:#1e40af}.cchip.st-started{background:#fde68a;color:#78350f}.cchip.st-concept,.cchip.st-option{background:var(--gray-s);color:var(--muted)}
 .cchip.off{background:#fee2e2;color:#991b1b;font-weight:600}
 @media(max-width:700px){.crewcal .nm{min-width:130px;max-width:150px}}
+.bulkbar{display:flex;align-items:center;gap:8px;padding:10px 16px;background:var(--pri-soft);border-bottom:1px solid var(--line);flex-wrap:wrap}
+tr.sel td{background:#fffbea}

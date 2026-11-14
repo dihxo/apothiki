@@ -60,7 +60,7 @@ VIEWS.orders = () => {
   const per=50, pages=Math.max(1,Math.ceil(list.length/per)); if(UI.ordPage>pages) UI.ordPage=pages; const pageList=list.slice((UI.ordPage-1)*per, UI.ordPage*per);
   const rows=pageList.map(o=>{ const tt=orderTotals(o); const cn=custName(o.customerId); const ps=payStatus(o);
     const lateS=o.status==='reserved'&&o.start<=t, lateE=o.status==='started'&&(o.end||o.start)<=t;
-    return `<tr class="click" data-act="go" data-href="#order-${o.id}"><td class="b">#${esc(String(o.number||'').replace(/^\D+0*/,''))}</td>
+    return `<tr class="click${UI.ordSel.has(o.id)?' sel':''}" data-act="go" data-href="#order-${o.id}">${can('staff')?`<td style="width:34px"><input type="checkbox" data-act="o-sel" data-id="${o.id}" ${UI.ordSel.has(o.id)?'checked':''}></td>`:''}<td class="b">#${esc(String(o.number||'').replace(/^\D+0*/,''))}</td>
     <td>${cn?`<span class="cav" style="background:${avColor(cn)}">${esc(initials(cn))}</span>${esc(cn)}`:'<span class="faint">—</span>'}${o.name?`<div class="xs muted" style="margin-left:32px">${esc(o.name)}</div>`:''}</td>
     <td>${pill(o.status)}</td><td class="${lateS?'late':''}" style="white-space:nowrap">${fmtD(o.start)} ${esc(o.startTime||'')}</td><td class="faint">→</td><td class="${lateE?'late':''}" style="white-space:nowrap">${fmtD(o.end)} ${esc(o.endTime||'')}</td>
     <td class="num b">${money(tt.total)}</td><td>${o.status==='cancelled'?'':pill(ps,PAY)}</td></tr>`; }).join('');
@@ -83,7 +83,7 @@ VIEWS.orders = () => {
       <div class="tabs" style="margin-bottom:14px">${tabs.map(([k,l])=>`<button class="${UI.ordTab===k?'on':''}" data-act="tab" data-k="ordTab" data-v="${k}">${l}</button>`).join('')}</div>
       <div class="metrics"><div class="card"><div class="l">Παραγγελίες</div><div class="n">${list.length}</div></div><div class="card"><div class="l">Τεμάχια</div><div class="n">${items.toLocaleString('el-GR')}</div></div><div class="card"><div class="l">Έσοδα</div><div class="n">${money(rev)}</div></div><div class="card"><div class="l">Οφειλές</div><div class="n">${money(due)}</div></div></div>
       <div class="card p0"><div class="card-h"><input type="search" class="grow" placeholder="Αναζήτηση αριθμού, πελάτη, χώρου…" data-bind="ordQ" value="${esc(UI.ordQ)}" style="max-width:380px"><div class="row small muted">${list.length?`${(UI.ordPage-1)*per+1}–${Math.min(list.length,UI.ordPage*per)} από ${list.length}`:''}${pages>1?`<button class="btn sm" data-act="o-page" data-v="-1" ${UI.ordPage<=1?'disabled':''}>‹</button><button class="btn sm" data-act="o-page" data-v="1" ${UI.ordPage>=pages?'disabled':''}>›</button>`:''}</div></div>
-      ${list.length&&isM()?`<div class="mlist">${mrows}</div>`:list.length?`<div class="tw"><table><thead><tr><th>#</th><th>Πελάτης</th><th>Κατάσταση</th><th>Από</th><th></th><th>Έως</th><th class="num">Τιμή</th><th>Πληρωμή</th></tr></thead><tbody>${rows}</tbody></table></div>`:`<div class="empty"><b>Δεν βρέθηκαν παραγγελίες</b></div>`}</div>
+      ${list.length&&isM()?`<div class="mlist">${mrows}</div>`:list.length?`${UI.ordSel.size?`<div class="bulkbar"><b>${UI.ordSel.size} επιλεγμένες</b><button class="btn sm" data-act="o-bulk-cancel">Ακύρωση</button>${can('staff')?`<button class="btn sm dangerous" data-act="o-bulk-del">Διαγραφή</button>`:''}<button class="btn sm ghost" data-act="o-sel-clear">Καθαρισμός επιλογής</button></div>`:''}<div class="tw"><table><thead><tr>${can('staff')?`<th><input type="checkbox" data-act="o-sel-all" ${pageList.length&&pageList.every(o=>UI.ordSel.has(o.id))?'checked':''}></th>`:''}<th>#</th><th>Πελάτης</th><th>Κατάσταση</th><th>Από</th><th></th><th>Έως</th><th class="num">Τιμή</th><th>Πληρωμή</th></tr></thead><tbody>${rows}</tbody></table></div>`:`<div class="empty"><b>Δεν βρέθηκαν παραγγελίες</b></div>`}</div>
     </div>
   </div>`;
 };
@@ -91,6 +91,17 @@ window.addEventListener('beforeinstallprompt', e=>{ e.preventDefault(); window._
 ACT['pwa-install']=async()=>{ const e=window._bip; if(!e) return; e.prompt(); try{ await e.userChoice; }catch(_){} window._bip=null; render(); };
 ACT['pwa-hide']=()=>{ UI.noInstall=true; try{ localStorage.setItem('noInstall','1'); }catch(e){} render(); };
 try{ if(localStorage.getItem('noInstall')) UI.noInstall=true; }catch(e){}
+ACT['o-sel']=el=>{ el.checked?UI.ordSel.add(el.dataset.id):UI.ordSel.delete(el.dataset.id); render(); };
+ACT['o-sel-all']=el=>{ $$('[data-act=o-sel]').forEach(b=>el.checked?UI.ordSel.add(b.dataset.id):UI.ordSel.delete(b.dataset.id)); render(); };
+ACT['o-sel-clear']=()=>{ UI.ordSel.clear(); render(); };
+ACT['o-bulk-cancel']=()=>{ const ids=[...UI.ordSel].filter(id=>D.orders[id]&&!['cancelled','stopped'].includes(D.orders[id].status)); const out=ids.filter(id=>D.orders[id].status==='started');
+  if(!ids.length) return toast('Οι επιλεγμένες είναι ήδη ακυρωμένες ή ολοκληρωμένες.', true);
+  confirmBox(`Ακύρωση ${ids.length} παραγγελιών;`, (out.length?`Προσοχή: ${out.length} έχουν εξοπλισμό εκτός αποθήκης. `:'')+'Ο εξοπλισμός και το συνεργείο θα αποδεσμευτούν. Μπορείς να τις επαναφέρεις αργότερα.', 'Ακύρωση παραγγελιών', async()=>{
+    const ops=ids.map(id=>{ const {id:_,...doc}=D.orders[id]; return {op:'put',coll:'orders',id,doc:{...doc,status:'cancelled'}}; });
+    if(await commit(ops, `Ακύρωση ${ids.length} παραγγελιών`)) UI.ordSel.clear(); render(); }); };
+ACT['o-bulk-del']=()=>{ const ids=[...UI.ordSel].filter(id=>D.orders[id]); const paid=ids.filter(id=>(D.orders[id].payments||[]).length).length; const out=ids.filter(id=>D.orders[id].status==='started').length;
+  confirmBox(`Οριστική διαγραφή ${ids.length} παραγγελιών;`, `Δεν αναιρείται.${out?` ${out} έχουν εξοπλισμό εκτός αποθήκης.`:''}${paid?` ${paid} έχουν καταχωρημένες πληρωμές.`:''} Αν θέλεις απλώς να μην ισχύουν, προτίμησε «Ακύρωση».`, 'Διαγραφή', async()=>{
+    if(await commit(ids.map(id=>({op:'del',coll:'orders',id})), `Διαγραφή ${ids.length} παραγγελιών`)) UI.ordSel.clear(); render(); }); };
 ACT['mfilt']=()=>{ UI.mfilt=!UI.mfilt; render(); };
 ACT['of-ck']=el=>{ const set=UI[el.dataset.set]; el.checked?set.add(el.dataset.v):set.delete(el.dataset.v); UI.ordPage=1; render(); };
 ACT['of-clear']=()=>{ UI.ordSt.clear(); UI.ordPay.clear(); UI.ordFrom=''; UI.ordTo=''; render(); };
@@ -173,7 +184,7 @@ VIEWS.order = id => {
   <div class="ohead"><h1><a href="#orders" style="color:var(--muted);text-decoration:none;font-weight:600">Παραγγελίες</a> <span class="faint">›</span> #${esc(String(d.number||'').replace(/^\D+0*/,''))} ${pill(d.status)} ${late?'<span class="pill red solid">Καθυστέρηση</span>':''}</h1>
     <span id="saveState" class="small"></span><div class="grow"></div>
     ${primary}
-    ${can('staff')?`<div class="dd"><button class="btn" data-act="dd">⋯</button><div class="dd-m">
+    ${can('staff')?`<div class="dd"><button class="btn" data-act="dd">⋯ Ενέργειες</button><div class="dd-m">
       ${['concept','reserved'].includes(d.status)?'<button data-act="o-status" data-v="option">Option (προσωρινή δέσμευση)</button>':''}
       ${d.status==='option'?'<button data-act="o-status" data-v="concept">Επαναφορά σε πρόχειρο</button>':''}
       ${d.status==='reserved'?'<button data-act="o-status" data-v="concept">Αποδέσμευση (πρόχειρο)</button>':''}
@@ -363,7 +374,7 @@ ACT['o-return']=async()=>{
   } else go(false);
 };
 ACT['o-dup']=()=>{ const d=UI.draft; createOrder({name:(d.name||'')+' (αντίγραφο)', customerId:d.customerId, venue:d.venue, lines:deepCopy(d.lines), discount:d.discount, deposit:d.deposit, notes:d.notes, start:d.start, end:d.end, startTime:d.startTime, endTime:d.endTime}); };
-ACT['o-del']=()=>{ const d=UI.draft; confirmBox(`Διαγραφή ${d.number};`, 'Η παραγγελία θα διαγραφεί οριστικά.', 'Διαγραφή', async()=>{ const id=d.id; UI.draft=null; if(await del('orders', id, 'Διαγράφηκε η '+d.number)) location.hash='orders'; }); };
+ACT['o-del']=()=>{ const d=UI.draft; confirmBox(`Διαγραφή ${d.number};`, 'Η παραγγελία θα διαγραφεί οριστικά και δεν αναιρείται.'+(d.status==='started'?' Προσοχή: ο εξοπλισμός της είναι εκτός αποθήκης.':'')+((d.payments||[]).length?' Έχει καταχωρημένες πληρωμές.':'')+(d.status!=='cancelled'?' Αν θέλεις απλώς να μην ισχύει, προτίμησε «Ακύρωση».':''), 'Διαγραφή', async()=>{ const id=d.id; UI.draft=null; if(await del('orders', id, 'Διαγράφηκε η '+d.number)) location.hash='orders'; }); };
 
 /* ---------- scanning in pick / return ---------- */
 function flowScan(code){

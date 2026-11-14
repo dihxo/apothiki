@@ -5,7 +5,7 @@ const D = { // server data
 };
 const UI = {
   me:null, ready:false, online:true, route:'dashboard',
-  prodTab:'all', prodCat:'all', prodQ:'', prodSel:new Set(),
+  prodTab:'all', prodCat:'all', prodQ:'', prodSel:new Set(), ordSel:new Set(),
   ordTab:'active', ordQ:'',
   custQ:'', mntTab:'open',
   calMode:'orders', calStart:null, calDays:28, calCat:'all',

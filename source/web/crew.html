@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Πρόγραμμα συνεργείου — ΔΙΗΧΟ</title>
+<meta name="robots" content="noindex,nofollow">
+<meta name="referrer" content="no-referrer">
+<link rel="icon" href="icon.png"><link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="theme-color" content="#ffffff"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Πρόγραμμα">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
+<style>
+:root{--brand:#f2c428;--brand-d:#e0b112;--soft:#fdf3cf;--ink:#191919;--muted:#6b7280;--faint:#9ca3af;--line:#e6e8ee;--bg:#f5f6fa;--green:#0f8a5f;--red:#d0313b}
+*{box-sizing:border-box}html,body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 Inter,system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;-webkit-font-smoothing:antialiased}
+a{color:inherit}
+.wrap{max-width:560px;margin:0 auto;padding:14px 14px calc(30px + env(safe-area-inset-bottom))}
+header{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:6px 2px 14px}
+header img{height:46px;width:auto}
+.btn{border:1px solid var(--line);background:#fff;border-radius:10px;padding:9px 13px;font:inherit;font-weight:600;font-size:13.5px;cursor:pointer;text-decoration:none;color:var(--ink)}
+h1{font-size:22px;margin:4px 2px 2px}.sub{color:var(--muted);margin:0 2px 16px;font-size:14px}
+input[type=search]{width:100%;padding:12px 14px;border:1px solid var(--line);border-radius:12px;font:inherit;font-size:16px;margin-bottom:12px;background:#fff}
+.people{display:grid;gap:8px}
+.pp{display:flex;align-items:center;gap:12px;background:#fff;border:1px solid var(--line);border-radius:14px;padding:12px 14px;text-decoration:none;font-weight:600;font-size:16px;cursor:pointer}
+.pp:active{background:var(--soft)}
+.pp small{display:block;font-weight:500;color:var(--muted);font-size:13px}
+.av{width:42px;height:42px;border-radius:50%;display:grid;place-items:center;color:#fff;font-weight:700;flex:none}
+.me{display:flex;align-items:center;gap:12px;margin:2px 2px 16px}
+.me .av{width:52px;height:52px;font-size:18px}
+.me h1{margin:0}.me .sub{margin:0}
+.me a{margin-left:auto;font-size:13px;color:var(--muted);white-space:nowrap}
+.day{font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin:18px 4px 8px;display:flex;align-items:center;gap:8px}
+.day.today{color:var(--ink)}.day.today::before{content:'';width:8px;height:8px;border-radius:50%;background:var(--brand)}
+.job{background:#fff;border:1px solid var(--line);border-radius:16px;padding:14px 16px;margin-bottom:10px;box-shadow:0 1px 2px rgba(0,0,0,.03)}
+.job.now{border:2px solid var(--brand)}
+.tm{font-size:22px;font-weight:800;letter-spacing:-.01em}
+.tm small{font-size:13px;font-weight:600;color:var(--muted);margin-left:6px}
+.ti{font-weight:700;font-size:16px;margin-top:4px}
+.cu{color:var(--muted);font-size:14px}
+.row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:8px}
+.tag{font-size:12px;font-weight:700;border-radius:7px;padding:3px 8px;background:var(--soft);color:var(--ink)}
+.tag.opt{background:#eef0f4;color:var(--muted)}
+.venue{display:flex;gap:8px;align-items:flex-start;margin-top:10px;padding:10px 12px;background:var(--bg);border-radius:10px;text-decoration:none;font-size:14px}
+.venue b{display:block}
+.note{margin-top:10px;font-size:14px;background:#fff8e1;border-left:3px solid var(--brand);padding:8px 10px;border-radius:6px}
+details{margin-top:10px;border-top:1px solid var(--line);padding-top:8px}
+summary{cursor:pointer;font-weight:600;font-size:14px;color:var(--muted);list-style:none;padding:4px 0}
+summary::-webkit-details-marker{display:none}
+summary::after{content:' ▾'}
+details[open] summary::after{content:' ▴'}
+.li{display:flex;justify-content:space-between;gap:10px;padding:6px 0;font-size:14px;border-bottom:1px dashed var(--line)}
+.li:last-child{border:none}.li span{color:var(--muted);white-space:nowrap}
+.off{background:#fee2e2;color:#991b1b;border-radius:12px;padding:10px 14px;margin-bottom:10px;font-weight:600;font-size:14px}
+.empty{text-align:center;color:var(--muted);padding:40px 16px;background:#fff;border:1px dashed var(--line);border-radius:16px}
+.empty b{display:block;color:var(--ink);font-size:16px;margin-bottom:4px}
+.err{background:#fee2e2;color:#991b1b;border-radius:14px;padding:18px;text-align:center;font-weight:600}
+.foot{text-align:center;color:var(--faint);font-size:12px;margin-top:20px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header><img src="logo.png" alt="ΔΙΗΧΟ"><button class="btn" id="refresh">↻ Ανανέωση</button></header>
+  <div id="app"><div class="empty">Φόρτωση…</div></div>
+  <div class="foot" id="foot"></div>
+</div>
+<script>
+'use strict';
+const K=new URLSearchParams(location.search).get('k')||'';
+let DATA=null;
+const $=s=>document.querySelector(s);
+const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const COLORS=['#e07a5f','#3d85c6','#81b29a','#9c6ade','#f2a541','#2a9d8f','#e76f51','#6d6875','#b5838d','#457b9d'];
+const col=n=>{ let h=0; for(const c of String(n)) h=(h*31+c.charCodeAt(0))>>>0; return COLORS[h%COLORS.length]; };
+const ini=n=>String(n||'?').trim().split(/\s+/).map(w=>w[0]).slice(0,2).join('').toUpperCase();
+const DOW=['Κυριακή','Δευτέρα','Τρίτη','Τετάρτη','Πέμπτη','Παρασκευή','Σάββατο'];
+const MON=['Ιαν','Φεβ','Μαρ','Απρ','Μαΐ','Ιουν','Ιουλ','Αυγ','Σεπ','Οκτ','Νοε','Δεκ'];
+const dd=s=>{ const d=new Date(s+'T00:00:00'); return `${DOW[d.getDay()]} ${d.getDate()} ${MON[d.getMonth()]}`; };
+const addD=(s,n)=>{ const d=new Date(s+'T00:00:00Z'); d.setUTCDate(d.getUTCDate()+n); return d.toISOString().slice(0,10); };
+function store(k,v){ try{ v===undefined?localStorage.removeItem(k):localStorage.setItem(k,v); }catch(e){} }
+function get(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } }
+
+async function load(){
+  if(!K){ $('#app').innerHTML='<div class="err">Ο σύνδεσμος δεν είναι πλήρης. Άνοιξε τον σύνδεσμο που σου έστειλε το γραφείο.</div>'; return; }
+  try{ const r=await fetch('/api/crewview?k='+encodeURIComponent(K),{cache:'no-store'}); const j=await r.json(); if(!r.ok) throw new Error(j.error||'Σφάλμα'); DATA=j; }
+  catch(e){ $('#app').innerHTML=`<div class="err">${esc(e.message||'Δεν υπάρχει σύνδεση. Δοκίμασε ξανά.')}</div>`; return; }
+  $('#foot').textContent='Ενημερώθηκε '+new Date().toLocaleTimeString('el-GR',{hour:'2-digit',minute:'2-digit'});
+  show();
+}
+function who(){ const h=decodeURIComponent(location.hash.slice(1)); if(h==='list') return null; const id=h||get('crewMe'); return DATA&&DATA.people.find(p=>p.id===id)?id:null; }
+function show(){ const id=who(); id?person(id):list(); window.scrollTo(0,0); }
+function list(){
+  const ppl=DATA.people;
+  $('#app').innerHTML=`<h1>Πρόγραμμα συνεργείου</h1><p class="sub">Πάτησε το όνομά σου για να δεις το πρόγραμμά σου.</p>
+    ${ppl.length>8?'<input type="search" id="q" placeholder="Αναζήτηση ονόματος…" autocomplete="off">':''}
+    <div class="people" id="pl">${ppl.map(p=>`<a class="pp" href="#${esc(p.id)}" data-n="${esc((p.name||'').toLowerCase())}"><span class="av" style="background:${col(p.name)}">${esc(ini(p.name))}</span><span>${esc(p.name)}<small>${esc(p.role||'')}</small></span></a>`).join('')||'<div class="empty"><b>Δεν υπάρχουν άτομα</b></div>'}</div>`;
+  const q=$('#q'); if(q) q.oninput=()=>{ const v=q.value.trim().toLowerCase(); document.querySelectorAll('.pp').forEach(a=>a.style.display=a.dataset.n.includes(v)?'':'none'); };
+}
+function person(id){
+  store('crewMe',id);
+  const p=DATA.people.find(x=>x.id===id), t=DATA.today;
+  const jobs=DATA.jobs.filter(j=>j.cid===id&&j.end>=t);
+  const off=((DATA.off||{})[id]||[]).filter(x=>(x.end||x.start)>=t);
+  // ομαδοποίηση ανά ημέρα (κάθε ημέρα πολυήμερης δουλειάς εμφανίζεται)
+  const byDay={};
+  for(const j of jobs){ let d=j.start<t?t:j.start; let g=0; while(d<=j.end&&g++<40){ (byDay[d]=byDay[d]||[]).push(j); d=addD(d,1); } }
+  const days=Object.keys(byDay).sort().slice(0,30);
+  const now=new Date(); const hm=String(now.getHours()).padStart(2,'0')+':'+String(now.getMinutes()).padStart(2,'0');
+  const card=(j,d)=>{ const o=j.order; const multi=j.start!==j.end; const isNow=d===t&&(j.from||'00:00')<=hm&&hm<=(j.to||'23:59');
+    const mates=j.team.filter(m=>m.cid!==id&&m.start<=d&&(m.end||m.start)>=d);
+    const maps='https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(o.venue||'');
+    return `<div class="job${isNow?' now':''}"><div class="tm">${esc(j.from||'')}${j.to?' – '+esc(j.to):''}${multi?`<small>ημέρα ${Math.round((new Date(d)-new Date(j.start))/864e5)+1} από ${Math.round((new Date(j.end)-new Date(j.start))/864e5)+1}</small>`:''}</div>
+      <div class="ti">${esc(o.title||o.customer||o.number)}</div>${o.title&&o.customer?`<div class="cu">${esc(o.customer)}</div>`:''}
+      <div class="row">${j.role?`<span class="tag">${esc(j.role)}</span>`:''}${o.status==='option'?'<span class="tag opt">Προς επιβεβαίωση</span>':''}<span class="tag opt">${esc(o.number)}</span></div>
+      ${o.venue?`<a class="venue" href="${maps}" target="_blank" rel="noopener">📍<span><b>${esc(o.venue)}</b>Άνοιγμα στον χάρτη →</span></a>`:''}
+      ${j.note?`<div class="note">${esc(j.note)}</div>`:''}
+      ${mates.length?`<details><summary>Ομάδα (${mates.length})</summary>${mates.map(m=>`<div class="li">${esc(m.name)}<span>${esc(m.role||'')} ${esc(m.from||'')}–${esc(m.to||'')}</span></div>`).join('')}</details>`:''}
+      ${j.equipment.length?`<details><summary>Εξοπλισμός (${j.equipment.length})</summary>${j.equipment.map(e=>`<div class="li">${esc(e.name)}<span>× ${esc(e.qty)}</span></div>`).join('')}</details>`:''}
+    </div>`; };
+  const lbl=d=>d===t?'Σήμερα · '+dd(d):(d===addD(t,1)?'Αύριο · '+dd(d):dd(d));
+  $('#app').innerHTML=`<div class="me"><span class="av" style="background:${col(p.name)}">${esc(ini(p.name))}</span><div><h1>${esc(p.name)}</h1><p class="sub">${esc(p.role||'')}</p></div><a href="#list">Δεν είσαι εσύ;</a></div>
+    ${off.map(x=>`<div class="off">🌴 ${esc(x.note||'Άδεια')}: ${dd(x.start)}${x.end&&x.end!==x.start?' – '+dd(x.end):''}</div>`).join('')}
+    ${days.length?days.map(d=>`<div class="day${d===t?' today':''}">${lbl(d)}</div>${byDay[d].map(j=>card(j,d)).join('')}`).join('')
+      :'<div class="empty"><b>Δεν έχεις προγραμματισμένες δουλειές</b>Όταν σε βάλουν σε κάποια παραγγελία θα εμφανιστεί εδώ.</div>'}`;
+}
+window.addEventListener('hashchange', ()=>{ if(location.hash==='#list') store('crewMe'); DATA&&show(); });
+$('#refresh').onclick=load;
+document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) load(); });
+setInterval(load, 120000);
+load();
+</script>
+</body>
+</html>

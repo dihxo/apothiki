@@ -867,6 +867,7 @@ func main() {
 	mux.HandleFunc("POST /api/login", hLogin)
 	mux.HandleFunc("POST /api/logout", hLogout)
 	mux.HandleFunc("GET /api/me", hMe)
+	mux.HandleFunc("GET /api/crewview", hCrewView)
 	mux.HandleFunc("GET /api/state", need(1, hState))
 	mux.HandleFunc("GET /api/events", need(1, hEvents))
 	mux.HandleFunc("GET /api/info", need(1, hInfo))
