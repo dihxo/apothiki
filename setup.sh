@@ -68,6 +68,7 @@ ufw allow OpenSSH; ufw allow 80/tcp; ufw allow 443/tcp; ufw --force enable
 systemctl daemon-reload
 systemctl enable --now apothiki
 systemctl enable --now apothiki-update.timer
+curl -fsSL "$REPO/instant.sh" | bash
 systemctl restart caddy
 sleep 5
 echo
