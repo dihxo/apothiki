@@ -138,6 +138,10 @@ tfoot td{font-weight:600;background:#fbfcfd}
 .avb.ok{background:var(--green-s);color:var(--green)}.avb.low{background:var(--orange-s);color:var(--orange)}.avb.bad{background:var(--red-s);color:var(--red)}
 /* ---------- tree ---------- */
 .tree a{display:flex;justify-content:space-between;padding:6px 9px;border-radius:7px;color:var(--ink);text-decoration:none;cursor:pointer;font-size:13.5px}
+.tree a.main{font-weight:700;color:#111827;margin-top:6px}
+.tree a.main span{font-weight:600}
+.catmain{font-weight:800;font-size:15px}
+.catsub{font-weight:500}
 .tree a:hover{background:var(--soft)}
 .tree a.on{background:var(--pri-soft);color:var(--pri);font-weight:600}
 .tree a span{color:var(--faint);font-size:12px}
