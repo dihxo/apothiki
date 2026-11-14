@@ -173,6 +173,7 @@ async function start(){
   if(UI.me.mustChange) setTimeout(()=>passwordModal(true), 300);
 }
 async function boot(){
+  loadLogo();
   if(!SERVER) return bootArtifact();
   try{ UI.me=await api('/api/me'); await start(); }
   catch(e){ if(e.status===401) renderLogin(); else $('#root').innerHTML=`<div class="empty"><b>Δεν υπάρχει σύνδεση με τον server</b>Βεβαιώσου ότι τρέχει το πρόγραμμα της αποθήκης στον υπολογιστή-server.<br><br><button class="btn" onclick="location.reload()">Δοκίμασε ξανά</button></div>`; }

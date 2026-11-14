@@ -312,8 +312,8 @@ function printHTML(title, body, extraCss=''){
 }
 function printLabels(items){ // [{code,name,sub}]
   if(!items.length) return toast('Δεν επιλέχθηκαν είδη.', true);
-  const body=`<div class="g">${items.map(it=>`<div class="l">${qrSVG(it.code,96)}<div><b>${esc(it.name)}</b><span>${esc(it.code)}</span><small>${esc(it.sub||'')}</small></div></div>`).join('')}</div>`;
-  printHTML('Ετικέτες QR', body, `.g{display:grid;grid-template-columns:repeat(3,1fr);gap:3mm}.l{border:1px dashed #bbb;padding:2.5mm;display:flex;gap:3mm;align-items:center;break-inside:avoid;height:32mm;overflow:hidden}.l svg{width:26mm;height:26mm;flex:none}.l b{display:block;font-size:10pt}.l span{display:block;font-family:monospace;font-size:10pt;margin:1mm 0}.l small{color:#666;font-size:7.5pt}`);
+  const body=`<div class="g">${items.map(it=>`<div class="l">${qrSVG(it.code,96)}<div>${LOGO?`<img class="lg" src="${LOGO}" alt="">`:''}<b>${esc(it.name)}</b><span>${esc(it.code)}</span><small>${esc(it.sub||'')}</small></div></div>`).join('')}</div>`;
+  printHTML('Ετικέτες QR', body, `.l .lg{display:block;height:5mm;width:auto;margin-bottom:1mm}.g{display:grid;grid-template-columns:repeat(3,1fr);gap:3mm}.l{border:1px dashed #bbb;padding:2.5mm;display:flex;gap:3mm;align-items:center;break-inside:avoid;height:32mm;overflow:hidden}.l svg{width:26mm;height:26mm;flex:none}.l b{display:block;font-size:10pt}.l span{display:block;font-family:monospace;font-size:10pt;margin:1mm 0}.l small{color:#666;font-size:7.5pt}`);
 }
 
 /* ---------- modal ---------- */
@@ -346,6 +346,9 @@ async function restoreBackup(){ throw {error:'Μη διαθέσιμο'}; }
 function dataURLtoBlob(u){ const [h,b]=u.split(','); const bin=atob(b); const a=new Uint8Array(bin.length); for(let i=0;i<bin.length;i++) a[i]=bin.charCodeAt(i); return new Blob([a],{type:(h.match(/data:([^;]+)/)||[])[1]||'application/octet-stream'}); }
 
 /* ---------- product images (square) ---------- */
+/* λογότυπο για τα έγγραφα (ενσωματωμένο, ώστε να τυπώνεται πάντα) */
+let LOGO='';
+async function loadLogo(){ try{ const r=await fetch('logo.png'); if(r.ok) LOGO=await blobToDataURL(await r.blob()); }catch(e){} }
 function blobToDataURL(b){ return new Promise(r=>{ const fr=new FileReader(); fr.onload=()=>r(fr.result); fr.readAsDataURL(b); }); }
 function squareImage(blob, size=600, fit='cover'){
   return new Promise((res,rej)=>{ const url=URL.createObjectURL(blob); const img=new Image();
