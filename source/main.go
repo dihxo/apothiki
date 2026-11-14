@@ -356,7 +356,10 @@ func hState(w http.ResponseWriter, r *http.Request, u Doc) {
 	data := map[string][]Doc{}
 	for name, c := range db.Colls {
 		list := make([]Doc, 0, len(c))
-		for _, d := range c {
+		for id, d := range c {
+			if d["id"] == nil || d["id"] == "" {
+				d["id"] = id
+			}
 			if name == "users" {
 				d = publicUser(d)
 			}
@@ -665,6 +668,16 @@ func hRestore(w http.ResponseWriter, r *http.Request, u Doc) {
 	for _, c := range []string{"categories", "products", "units", "customers", "orders", "maintenance", "settings", "users"} {
 		if db.Colls[c] == nil {
 			db.Colls[c] = map[string]Doc{}
+		}
+	}
+	// τα αντίγραφα της έκδοσης browser έχουν το id μόνο ως κλειδί
+	for _, c := range db.Colls {
+		for id, d := range c {
+			if d == nil {
+				delete(c, id)
+				continue
+			}
+			d["id"] = id
 		}
 	}
 	addLogLocked(userName(u), "Επαναφορά αντιγράφου ασφαλείας")

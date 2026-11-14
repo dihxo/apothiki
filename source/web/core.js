@@ -66,7 +66,7 @@ async function api(path, body, method){
 async function loadState(){
   const s = await api('/api/state');
   for(const k of ['categories','products','units','customers','orders','maintenance','settings','users']){
-    const m={}; for(const d of (s.data[k]||[])) m[d.id]=d; D[k]=m;
+    const m={}; for(const d of (s.data[k]||[])) if(d&&d.id) m[d.id]=d; D[k]=m;
   }
   D.counters = s.counters||{}; D.version = s.version; bump();
 }

@@ -13,7 +13,7 @@ VIEWS.products = () => {
   if(q) list=list.filter(p=>[p.name,p.sku,p.location,p.supplier,p.notes,catPath(p.cat)].some(v=>(v||'').toLowerCase().includes(q)));
   list=prodsSorted(list);
   const counts={}; for(const p of Object.values(D.products)){ if(p.archived) continue; let c=D.categories[p.cat], g=0; while(c&&g++<10){ counts[c.id]=(counts[c.id]||0)+1; c=D.categories[c.parent]; } }
-  const tree=(parent,depth)=>sortBy(Object.values(D.categories).filter(c=>(c.parent||'')===(parent||'')),c=>c.name).map(c=>`<a class="${UI.prodCat===c.id?'on':''}" data-act="tab" data-k="prodCat" data-v="${c.id}" style="padding-left:${9+depth*14}px">${esc(c.name)}<span>${counts[c.id]||0}</span></a>`+tree(c.id,depth+1)).join('');
+  const tree=(parent,depth)=>depth>9?"":sortBy(Object.values(D.categories).filter(c=>(c.parent||'')===(parent||'')),c=>c.name).map(c=>`<a class="${UI.prodCat===c.id?'on':''}" data-act="tab" data-k="prodCat" data-v="${c.id}" style="padding-left:${9+depth*14}px">${esc(c.name)}<span>${counts[c.id]||0}</span></a>`+tree(c.id,depth+1)).join('');
   const noCat=Object.values(D.products).filter(p=>!p.archived&&(!p.cat||!D.categories[p.cat])).length;
   const allSel=list.length&&list.every(p=>UI.prodSel.has(p.id));
   const rows=list.map(p=>{ const st=stockOf(p.id), fr=freeUnits(p.id,t,t).free; const mnt=Object.values(D.maintenance).filter(m=>m.productId===p.id&&m.status!=='done').length;
@@ -244,7 +244,7 @@ ACT['new-mnt-for']=el=>maintenanceModal(null,{productId:el.dataset.id, start:tod
 /* ---------- categories ---------- */
 VIEWS.categories = () => {
   const counts={}; for(const p of Object.values(D.products)) counts[p.cat]=(counts[p.cat]||0)+1;
-  const tree=(parent,depth)=>sortBy(Object.values(D.categories).filter(c=>(c.parent||'')===(parent||'')),c=>c.name).map(c=>`
+  const tree=(parent,depth)=>depth>9?"":sortBy(Object.values(D.categories).filter(c=>(c.parent||'')===(parent||'')),c=>c.name).map(c=>`
     <div class="li" style="padding-left:${depth*24}px"><div>${depth?'<span class="faint">└ </span>':''}<b>${esc(c.name)}</b> <span class="small muted">${counts[c.id]||0} προϊόντα</span></div>
     ${can('staff')?`<div class="row"><button class="btn sm" data-act="cat-add" data-parent="${c.id}">+ Υποκατηγορία</button><button class="icon" data-act="cat-edit" data-id="${c.id}">✎</button><button class="icon" data-act="cat-del" data-id="${c.id}">✕</button></div>`:''}</div>`+tree(c.id,depth+1)).join('');
   return `<div class="ph"><div><h1>Κατηγορίες</h1><p class="sub">Ιεραρχική ταξινόμηση (π.χ. Ήχος › Μικρόφωνα › Ασύρματα)</p></div>${can('staff')?`<button class="btn pri" data-act="cat-add" data-parent="">+ Νέα κατηγορία</button>`:''}</div>

@@ -136,7 +136,7 @@ if(!SERVER){
 
   /* αντίγραφα ασφαλείας — ίδια μορφή με τον server, για μεταφορά αργότερα */
   buildBackup = async () => {
-    const colls={}; for(const c of COLLS){ colls[c]={}; for(const [id,d] of Object.entries(D[c])) colls[c][id]={...d}; }
+    const colls={}; for(const c of COLLS){ colls[c]={}; for(const [id,d] of Object.entries(D[c])) colls[c][id]={...d, id}; }
     // οι εικόνες μπαίνουν μέσα στο αντίγραφο, ώστε να μεταφέρονται και σε server
     for(const p of Object.values(colls.products)){ if(p.image && !p.image.startsWith('data:')){ try{ const b=await (await fetch(p.image)).blob(); p.image=await blobToDataURL(b); }catch(e){} } }
     const counters={}; try{ const s=await AS.db.collection('counters').get(); for(const d of s.docs) counters[d.id]=+d.data().n||0; }catch(e){}
