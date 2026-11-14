@@ -34,24 +34,66 @@ function crewPeople(){
     ${list.length?(isM()?`<div class="mlist">${mrows}</div>`:`<div class="tw"><table><thead><tr><th>Όνομα</th><th>Επικοινωνία</th><th>Κόστος</th><th>Χρέωση πελάτη</th><th>Σήμερα</th><th>Επόμενη δουλειά</th></tr></thead><tbody>${rows}</tbody></table></div>`)
       :`<div class="empty"><b>${all.length?'Κανένα αποτέλεσμα':'Δεν έχεις προσθέσει άτομα ακόμη'}</b>${all.length?'':'Πρόσθεσε το μόνιμο προσωπικό και τους εξωτερικούς συνεργάτες σου.'}</div>`}</div>`;
 }
-function crewSchedule(){
-  const t=today(); const start=UI.crewStart||addDays(t,-1); const n=isM()?7:14;
-  const days=[...Array(n)].map((_,i)=>addDays(start,i));
+function defWeek(){ const t=today(); return new Date(t+'T00:00:00Z').getUTCDay()===0 ? addDays(t,1) : weekStart(t); }
+function weekStart(d){ const dt=new Date(d+'T00:00:00Z'); const wd=(dt.getUTCDay()+6)%7; return addDays(d,-wd); }
+function weekLabel(ws){ const we=addDays(ws,6); const a=new Date(ws+'T00:00:00'), b=new Date(we+'T00:00:00'); const M=GR_MON_S;
+  return a.getMonth()===b.getMonth() ? `${a.getDate()}–${b.getDate()} ${M[b.getMonth()]} ${b.getFullYear()}` : `${a.getDate()} ${M[a.getMonth()]} – ${b.getDate()} ${M[b.getMonth()]} ${b.getFullYear()}`; }
+function crewWeekData(ws){
+  const days=[...Array(7)].map((_,i)=>addDays(ws,i)), we=days[6];
   const people=crewSorted(Object.values(D.crew).filter(c=>!c.inactive));
-  const asg={}; for(const o of Object.values(D.orders)){ if(!CREW_ST.includes(o.status)) continue; for(const a of o.crew||[]){ (asg[a.cid]=asg[a.cid]||[]).push({a,o}); } }
-  const dow=['Κυ','Δε','Τρ','Τε','Πε','Πα','Σα'];
-  const head=days.map(d=>{ const dt=new Date(d+'T00:00:00'); return `<th class="${d===t?'td':''} ${[0,6].includes(dt.getDay())?'we':''}">${dow[dt.getDay()]}<br><b>${dt.getDate()}/${dt.getMonth()+1}</b></th>`; }).join('');
-  const rows=people.map(c=>{ const mine=asg[c.id]||[]; let free=0;
-    const cells=days.map(d=>{ const here=mine.filter(x=>x.a.start<=d&&(x.a.end||x.a.start)>=d); const off=(c.off||[]).find(x=>x.start<=d&&(x.end||x.start)>=d);
-      if(!here.length&&!off) free++;
-      return `<td class="${d===t?'td':''} ${here.length>1?'clash':''}">${off?`<span class="cchip off" title="${esc(off.note||'Μη διαθέσιμος')}">${esc(off.note||'Άδεια')}</span>`:''}${here.map(x=>`<a class="cchip st-${x.o.status}" href="#order-${x.o.id}" title="${esc(x.o.number+' · '+(custName(x.o.customerId)||x.o.name||'')+' · '+(x.a.role||'')+' '+(x.a.from||'')+'–'+(x.a.to||''))}">${esc(String(x.o.number).replace(/^\D+0*/,''))}</a>`).join('')}</td>`; }).join('');
+  const asg={}, orders={};
+  for(const o of Object.values(D.orders)){ if(!CREW_ST.includes(o.status)) continue;
+    for(const a of o.crew||[]){ const e=a.end||a.start; if(a.start>we||e<ws) continue; (asg[a.cid]=asg[a.cid]||[]).push({a,o}); (orders[o.id]=orders[o.id]||{o,list:[]}).list.push(a); } }
+  return {days, people, asg, orders:sortBy(Object.values(orders),x=>x.o.start+(x.o.startTime||''))};
+}
+const DOW_S=['Κυ','Δε','Τρ','Τε','Πε','Πα','Σα'], DOW_L=['Κυριακή','Δευτέρα','Τρίτη','Τετάρτη','Πέμπτη','Παρασκευή','Σάββατο'];
+function crewSchedule(){
+  const t=today(); const ws=UI.crewWeek||defWeek(); const {days,people,asg}=crewWeekData(ws);
+  const head=days.map(d=>{ const dt=new Date(d+'T00:00:00'); return `<th class="${d===t?'td':''} ${[0,6].includes(dt.getDay())?'we':''}">${DOW_S[dt.getDay()]}<br><b>${dt.getDate()}/${dt.getMonth()+1}</b></th>`; }).join('');
+  let busyN=0;
+  const rows=people.map(c=>{ const mine=asg[c.id]||[];
+    const cells=days.map(d=>{ const here=sortBy(mine.filter(x=>x.a.start<=d&&(x.a.end||x.a.start)>=d),x=>x.a.from||''); const off=(c.off||[]).find(x=>x.start<=d&&(x.end||x.start)>=d);
+      if(here.length) busyN++;
+      return `<td class="${d===t?'td':''} ${here.length>1?'clash':''}">${off?`<span class="cchip off" title="${esc(off.note||'Μη διαθέσιμος')}">${esc(off.note||'Άδεια')}</span>`:''}${here.map(x=>`<a class="cchip wk st-${x.o.status}" href="#order-${x.o.id}" title="${esc(x.o.number+' · '+(custName(x.o.customerId)||'')+' · '+(x.a.role||''))}"><b>${esc(x.a.from||'')}${x.a.to?'–'+esc(x.a.to):''}</b><span>${esc(x.o.name||custName(x.o.customerId)||x.o.number)}</span></a>`).join('')}</td>`; }).join('');
     return `<tr><th class="nm"><div class="pcell">${crewAv(c,26)}<div><a class="lk" href="#" data-act="crew-edit" data-id="${c.id}">${esc(c.name)}</a><div class="xs muted">${esc(c.role||'')}</div></div></div></th>${cells}</tr>`; }).join('');
-  return `<div class="row" style="margin-bottom:12px;gap:6px"><button class="btn" data-act="crew-mv" data-v="-${n}">‹</button><button class="btn" data-act="crew-mv" data-v="0">Σήμερα</button><button class="btn" data-act="crew-mv" data-v="${n}">›</button><span class="small muted" style="margin-left:8px">${fmtD(days[0])} – ${fmtD(days[n-1])}</span></div>
+  return `<div class="row" style="margin-bottom:12px;gap:6px;flex-wrap:wrap"><button class="btn" data-act="crew-wk" data-v="-7">‹</button><button class="btn" data-act="crew-wk" data-v="0">Αυτή η εβδομάδα</button><button class="btn" data-act="crew-wk" data-v="7">›</button>
+      <b style="margin:0 8px">${weekLabel(ws)}</b><div class="grow"></div><button class="btn keep-m" data-act="crew-wk-print">🖨 Εκτύπωση / PDF εβδομάδας</button></div>
     ${people.length?`<div class="card p0"><div class="cal crewcal"><table><thead><tr><th class="nm">Άτομο</th>${head}</tr></thead><tbody>${rows}</tbody></table></div></div>
-    <div class="small muted" style="margin-top:8px">Οι αριθμοί είναι οι παραγγελίες — κλικ για άνοιγμα. Κόκκινο κελί = το ίδιο άτομο σε δύο δουλειές την ίδια ημέρα.</div>`
+    <div class="small muted" style="margin-top:8px">Κλικ σε δουλειά για άνοιγμα της παραγγελίας. Κόκκινο κελί = το ίδιο άτομο σε δύο δουλειές την ίδια ημέρα.</div>`
     :'<div class="card empty"><b>Δεν υπάρχουν άτομα</b>Πρόσθεσε πρώτα το προσωπικό σου.</div>'}`;
 }
-ACT['crew-mv']=el=>{ const v=+el.dataset.v; UI.crewStart = v===0 ? addDays(today(),-1) : addDays(UI.crewStart||addDays(today(),-1), v); render(); };
+ACT['crew-wk']=el=>{ const v=+el.dataset.v; UI.crewWeek = v===0 ? weekStart(today()) : addDays(UI.crewWeek||defWeek(), v); render(); };
+ACT['crew-wk-print']=()=>printCrewWeek(UI.crewWeek||defWeek());
+function printCrewWeek(ws){
+  const {days,people,asg,orders}=crewWeekData(ws); const s=settings();
+  const head=days.map(d=>{ const dt=new Date(d+'T00:00:00'); return `<th class="${[0,6].includes(dt.getDay())?'we':''}">${DOW_L[dt.getDay()]}<br><span>${dt.getDate()}/${dt.getMonth()+1}</span></th>`; }).join('');
+  const rows=people.map(c=>{ const mine=asg[c.id]||[];
+    return `<tr><td class="nm"><b>${esc(c.name)}</b><small>${esc(c.role||'')}${c.phone?' · '+esc(c.phone):''}</small></td>${days.map(d=>{ const here=sortBy(mine.filter(x=>x.a.start<=d&&(x.a.end||x.a.start)>=d),x=>x.a.from||''); const off=(c.off||[]).find(x=>x.start<=d&&(x.end||x.start)>=d);
+      return `<td>${off?`<div class="off">${esc(off.note||'Άδεια')}</div>`:''}${here.map(x=>`<div class="j"><b>${esc(x.a.from||'')}${x.a.to?'–'+esc(x.a.to):''}</b><span>${esc(x.o.name||custName(x.o.customerId)||x.o.number)}</span>${x.o.venue?`<small>${esc(x.o.venue)}</small>`:''}</div>`).join('')}</td>`; }).join('')}</tr>`; }).join('');
+  const ev=orders.map(({o,list})=>`<div class="ev"><div class="evh"><b>${esc(o.name||custName(o.customerId)||o.number)}</b> <span>${esc(o.number)}${o.name&&custName(o.customerId)?' · '+esc(custName(o.customerId)):''}</span></div>
+    <div class="evm">${fmtD(o.start)}${o.end&&o.end!==o.start?' – '+fmtD(o.end):''}${o.venue?' · 📍 '+esc(o.venue):''}${o.status==='option'||o.status==='concept'?' · <i>προς επιβεβαίωση</i>':''}</div>
+    <div class="evc">${sortBy(list,a=>a.start+(a.from||'')).map(a=>`<span>${esc(crewName(a.cid))} <small>(${esc(a.role||'')}, ${fmtD(a.start).slice(0,5)}${a.end&&a.end!==a.start?'–'+fmtD(a.end).slice(0,5):''} ${esc(a.from||'')}–${esc(a.to||'')})</small></span>`).join('')}</div>
+    ${list.some(a=>a.note)?`<div class="evn">${list.filter(a=>a.note).map(a=>esc(crewName(a.cid))+': '+esc(a.note)).join(' · ')}</div>`:''}</div>`).join('');
+  printHTML('Πρόγραμμα προσωπικού '+weekLabel(ws), `
+    <div class="hd">${LOGO?`<img src="${LOGO}" alt="">`:`<b style="font-size:16pt">${esc(s.name||'')}</b>`}<div><h1>Εβδομαδιαίο πρόγραμμα προσωπικού</h1><div class="wk">${weekLabel(ws)}</div></div></div>
+    <div class="bar"></div>
+    <table class="g"><thead><tr><th class="nm">Άτομο</th>${head}</tr></thead><tbody>${rows||'<tr><td colspan="8">Δεν υπάρχουν άτομα.</td></tr>'}</tbody></table>
+    ${ev?`<h2>Εκδηλώσεις της εβδομάδας</h2>${ev}`:'<p class="muted">Δεν υπάρχουν αναθέσεις αυτή την εβδομάδα.</p>'}
+    <div class="ft">Εκτυπώθηκε ${fmtD(today())} · Αλλαγές στο πρόγραμμα ενημερώνονται στον σύνδεσμο του προσωπικού</div>`,
+  `@page{size:A4 landscape;margin:9mm} body{padding:6mm;font-size:8.5pt}
+   .hd{display:flex;align-items:center;gap:8mm}.hd img{height:15mm}.hd h1{font-size:15pt;margin:0}.wk{font-size:11pt;color:#555;font-weight:600}
+   .bar{height:1mm;background:#f2c428;margin:4mm 0 3mm;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+   table.g{table-layout:fixed;margin-top:0} table.g th{font-size:8pt;text-align:center;border-bottom:1.5px solid #111;padding:1.5mm 1mm} table.g th span{font-weight:400;color:#555}
+   table.g th.nm,table.g td.nm{width:30mm;text-align:left} table.g td{border:1px solid #ddd;padding:1mm;vertical-align:top;height:11mm}
+   table.g th.we{color:#777} td.nm b{display:block;font-size:8.5pt} td.nm small{color:#666;font-size:7pt}
+   .j{background:#fdf3cf;border-radius:1.2mm;padding:.8mm 1.2mm;margin-bottom:.8mm;-webkit-print-color-adjust:exact;print-color-adjust:exact;break-inside:avoid}
+   .j b{display:block;font-size:8pt}.j span{display:block;font-size:7.5pt;line-height:1.2}.j small{display:block;font-size:6.5pt;color:#555;line-height:1.15}
+   .off{background:#fee2e2;color:#991b1b;border-radius:1.2mm;padding:.8mm 1.2mm;font-size:7.5pt;font-weight:600;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+   tr{break-inside:avoid} h2{font-size:11pt;margin:6mm 0 2mm;break-after:avoid}
+   .ev{border:1px solid #ddd;border-radius:2mm;padding:2mm 3mm;margin-bottom:2mm;break-inside:avoid}.evh b{font-size:9.5pt}.evh span{color:#666}
+   .evm{color:#444;margin:.5mm 0 1mm}.evc span{display:inline-block;margin:0 4mm .5mm 0}.evc small{color:#666}.evn{margin-top:1mm;font-size:7.5pt;color:#7a5b00}
+   .ft{margin-top:4mm;text-align:center;color:#999;font-size:7pt}`);
+}
 
 /* ---------- καρτέλα ατόμου ---------- */
 ACT['crew-new']=()=>crewModal(null);

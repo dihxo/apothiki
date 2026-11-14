@@ -33,7 +33,7 @@ func hCrewView(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	now := time.Now()
-	from := now.AddDate(0, 0, -3).Format("2006-01-02")
+	from := now.AddDate(0, 0, -10).Format("2006-01-02")
 	to := now.AddDate(0, 0, 90).Format("2006-01-02")
 
 	type person struct {

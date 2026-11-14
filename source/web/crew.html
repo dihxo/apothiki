@@ -85,11 +85,37 @@ async function load(){
   $('#foot').textContent='Ενημερώθηκε '+new Date().toLocaleTimeString('el-GR',{hour:'2-digit',minute:'2-digit'});
   show();
 }
-function who(){ const h=decodeURIComponent(location.hash.slice(1)); if(h==='list') return null; const id=h||get('crewMe'); return DATA&&DATA.people.find(p=>p.id===id)?id:null; }
-function show(){ const id=who(); id?person(id):list(); window.scrollTo(0,0); }
+function who(){ const h=decodeURIComponent(location.hash.slice(1)); if(h==='list'||h.startsWith('team')) return null; const id=h||get('crewMe'); return DATA&&DATA.people.find(p=>p.id===id)?id:null; }
+function show(){ const h=location.hash.slice(1); if(h.startsWith('team')) team(+(h.split(':')[1]||0)); else { const id=who(); id?person(id):list(); } window.scrollTo(0,0); }
+const wkStart=d=>{ const dt=new Date(d+'T00:00:00Z'); return addD(d,-((dt.getUTCDay()+6)%7)); };
+const wkLabel=ws=>{ const a=new Date(ws+'T00:00:00'), b=new Date(addD(ws,6)+'T00:00:00'); return a.getMonth()===b.getMonth()?`${a.getDate()}–${b.getDate()} ${MON[b.getMonth()]}`:`${a.getDate()} ${MON[a.getMonth()]} – ${b.getDate()} ${MON[b.getMonth()]}`; };
+function team(off){
+  off=Math.max(0,Math.min(8,off||0)); const t=DATA.today; const sun=new Date(t+'T00:00:00Z').getUTCDay()===0; const ws=addD(wkStart(t),7*(off+(sun?1:0))); const days=[...Array(7)].map((_,i)=>addD(ws,i));
+  const name=id=>(DATA.people.find(p=>p.id===id)||{}).name||'';
+  const back=get('crewMe')&&DATA.people.find(p=>p.id===get('crewMe'))?`#${get('crewMe')}`:'#list';
+  let html=`<div class="me" style="margin-bottom:10px"><div><h1>Η εβδομάδα της ομάδας</h1><p class="sub">${wkLabel(ws)}</p></div><a href="${back}">← Πίσω</a></div>
+    <div style="display:flex;gap:8px;margin-bottom:6px">${off>0?`<a class="btn" href="#team:${off-1}">‹ Προηγούμενη</a>`:''}${off!==0?`<a class="btn" href="#team:0">${sun?'Επόμενη εβδομάδα':'Αυτή η εβδομάδα'}</a>`:''}${off<8?`<a class="btn" href="#team:${off+1}" style="margin-left:auto">Επόμενη ›</a>`:''}</div>`;
+  let any=false;
+  for(const d of days){
+    if(d<t&&off===0&&d!==t){ /* περασμένες ημέρες της εβδομάδας: δείχνονται συμπτυγμένες */ }
+    const jobs=DATA.jobs.filter(j=>j.start<=d&&j.end>=d);
+    const offs=Object.entries(DATA.off||{}).flatMap(([id,l])=>(l||[]).filter(x=>x.start<=d&&(x.end||x.start)>=d).map(x=>({id,x}))).filter(o=>name(o.id));
+    const groups={}; for(const j of jobs){ const k=j.order.number; (groups[k]=groups[k]||{o:j.order,list:[]}).list.push(j); }
+    const gs=Object.values(groups).sort((a,b)=>Math.min(...a.list.map(j=>j.from||'99'))>Math.min(...b.list.map(j=>j.from||'99'))?1:-1);
+    if(gs.length||offs.length) any=true;
+    html+=`<div class="day${d===t?' today':''}">${d===t?'Σήμερα · ':''}${dd(d)}</div>`;
+    if(!gs.length&&!offs.length){ html+='<div class="cu" style="margin:0 4px 6px">— Χωρίς δουλειές</div>'; continue; }
+    for(const g of gs){ const o=g.o;
+      html+=`<div class="job"><div class="ti" style="margin:0">${esc(o.title||o.customer||o.number)}</div>${o.title&&o.customer?`<div class="cu">${esc(o.customer)}</div>`:''}${o.venue?`<div class="cu">📍 ${esc(o.venue)}</div>`:''}${o.status==='option'?'<div class="row"><span class="tag opt">Προς επιβεβαίωση</span></div>':''}
+        <div style="margin-top:8px">${g.list.sort((a,b)=>(a.from||'')>(b.from||'')?1:-1).map(j=>`<div class="li"><b style="font-weight:600">${esc(name(j.cid))}</b><span>${esc(j.role||'')} · ${esc(j.from||'')}–${esc(j.to||'')}</span></div>`).join('')}</div></div>`; }
+    if(offs.length) html+=`<div class="off">🌴 ${offs.map(o=>esc(name(o.id))+(o.x.note?' ('+esc(o.x.note)+')':'')).join(', ')}</div>`;
+  }
+  if(!any) html+='';
+  $('#app').innerHTML=html;
+}
 function list(){
   const ppl=DATA.people;
-  $('#app').innerHTML=`<h1>Πρόγραμμα συνεργείου</h1><p class="sub">Πάτησε το όνομά σου για να δεις το πρόγραμμά σου.</p>
+  $('#app').innerHTML=`<h1>Πρόγραμμα συνεργείου</h1><p class="sub">Πάτησε το όνομά σου για να δεις το πρόγραμμά σου.</p><a class="btn" href="#team:0" style="display:inline-block;margin:0 0 14px">👥 Η εβδομάδα της ομάδας</a>
     ${ppl.length>8?'<input type="search" id="q" placeholder="Αναζήτηση ονόματος…" autocomplete="off">':''}
     <div class="people" id="pl">${ppl.map(p=>`<a class="pp" href="#${esc(p.id)}" data-n="${esc((p.name||'').toLowerCase())}"><span class="av" style="background:${col(p.name)}">${esc(ini(p.name))}</span><span>${esc(p.name)}<small>${esc(p.role||'')}</small></span></a>`).join('')||'<div class="empty"><b>Δεν υπάρχουν άτομα</b></div>'}</div>`;
   const q=$('#q'); if(q) q.oninput=()=>{ const v=q.value.trim().toLowerCase(); document.querySelectorAll('.pp').forEach(a=>a.style.display=a.dataset.n.includes(v)?'':'none'); };
@@ -116,7 +142,7 @@ function person(id){
       ${j.equipment.length?`<details><summary>Εξοπλισμός (${j.equipment.length})</summary>${j.equipment.map(e=>`<div class="li">${esc(e.name)}<span>× ${esc(e.qty)}</span></div>`).join('')}</details>`:''}
     </div>`; };
   const lbl=d=>d===t?'Σήμερα · '+dd(d):(d===addD(t,1)?'Αύριο · '+dd(d):dd(d));
-  $('#app').innerHTML=`<div class="me"><span class="av" style="background:${col(p.name)}">${esc(ini(p.name))}</span><div><h1>${esc(p.name)}</h1><p class="sub">${esc(p.role||'')}</p></div><a href="#list">Δεν είσαι εσύ;</a></div>
+  $('#app').innerHTML=`<div class="me"><span class="av" style="background:${col(p.name)}">${esc(ini(p.name))}</span><div><h1>${esc(p.name)}</h1><p class="sub">${esc(p.role||'')}</p></div><a href="#list">Δεν είσαι εσύ;</a></div><a class="btn" href="#team:0" style="display:inline-block;margin:0 0 6px">👥 Η εβδομάδα της ομάδας</a>
     ${off.map(x=>`<div class="off">🌴 ${esc(x.note||'Άδεια')}: ${dd(x.start)}${x.end&&x.end!==x.start?' – '+dd(x.end):''}</div>`).join('')}
     ${days.length?days.map(d=>`<div class="day${d===t?' today':''}">${lbl(d)}</div>${byDay[d].map(j=>card(j,d)).join('')}`).join('')
       :'<div class="empty"><b>Δεν έχεις προγραμματισμένες δουλειές</b>Όταν σε βάλουν σε κάποια παραγγελία θα εμφανιστεί εδώ.</div>'}`;
