@@ -339,9 +339,11 @@ function dataURLtoBlob(u){ const [h,b]=u.split(','); const bin=atob(b); const a=
 
 /* ---------- product images (square) ---------- */
 function blobToDataURL(b){ return new Promise(r=>{ const fr=new FileReader(); fr.onload=()=>r(fr.result); fr.readAsDataURL(b); }); }
-function squareImage(blob, size=600){
+function squareImage(blob, size=600, fit='cover'){
   return new Promise((res,rej)=>{ const url=URL.createObjectURL(blob); const img=new Image();
-    img.onload=()=>{ const s=Math.min(img.width,img.height), sx=(img.width-s)/2, sy=(img.height-s)/2; const c=document.createElement('canvas'); c.width=c.height=size; const x=c.getContext('2d'); x.fillStyle='#fff'; x.fillRect(0,0,size,size); x.drawImage(img,sx,sy,s,s,0,0,size,size); URL.revokeObjectURL(url); c.toBlob(b=>b?res(b):rej(new Error('Αποτυχία επεξεργασίας εικόνας')),'image/jpeg',0.85); };
+    img.onload=()=>{ const c=document.createElement('canvas'); c.width=c.height=size; const x=c.getContext('2d'); x.fillStyle='#fff'; x.fillRect(0,0,size,size);
+      if(fit==='contain'){ const k=size*0.94/Math.max(img.width,img.height), w=img.width*k, h=img.height*k; x.imageSmoothingQuality='high'; x.drawImage(img,(size-w)/2,(size-h)/2,w,h); }
+      else { const s=Math.min(img.width,img.height), sx=(img.width-s)/2, sy=(img.height-s)/2; x.drawImage(img,sx,sy,s,s,0,0,size,size); } URL.revokeObjectURL(url); c.toBlob(b=>b?res(b):rej(new Error('Αποτυχία επεξεργασίας εικόνας')),'image/jpeg',0.85); };
     img.onerror=()=>{ URL.revokeObjectURL(url); rej(new Error('Το αρχείο δεν είναι εικόνα')); }; img.src=url; });
 }
 let storeImage = async blob => blobToDataURL(blob); // server: αποθήκευση μέσα στο προϊόν

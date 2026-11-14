@@ -265,21 +265,15 @@ tfoot td{font-weight:600;background:#fbfcfd}
 a{color:var(--brand-ink)}
 .brand{display:block;padding:20px 20px 14px;text-decoration:none}
 .brand img{display:block;width:100%;max-width:180px;height:auto}
-.brand small{display:block;margin-top:8px;color:#8d8d8d;font-size:11px;letter-spacing:.08em;text-transform:uppercase}
+.brand small{display:block;margin-top:8px;color:var(--muted);font-size:11px;letter-spacing:.08em;text-transform:uppercase}
 .brand-login{text-align:center;margin-bottom:6px}
 .brand-login img{width:230px;max-width:100%;height:auto}
 .brand-login small{display:block;margin-top:6px;color:var(--muted);font-size:11.5px;letter-spacing:.08em;text-transform:uppercase}
-#side{background:var(--dark);border-right:none;color:#e9e9e9}
-#side nav .sec{color:#7b7b7b}
-#side nav a,.side-bottom a{color:#cfcfcf}
-#side nav a:hover,.side-bottom a:hover{background:rgba(255,255,255,.07);color:#fff}
-#side nav a.on,.side-bottom a.on{background:rgba(242,196,40,.15);color:var(--brand);box-shadow:inset 3px 0 0 var(--brand)}
-.side-new{color:var(--brand)!important}
+#side nav a.on,.side-bottom a.on{background:var(--pri-soft);color:var(--dark);box-shadow:inset 3px 0 0 var(--brand)}
+#side nav a.on svg{color:var(--brand-d);opacity:1}
+.side-new{color:var(--dark)!important}
 .side-new i{background:var(--brand);color:var(--dark)}
-.side-new:hover{background:rgba(242,196,40,.12)!important}
-.side-bottom,.side-foot{border-top-color:#2e2e2e}
-.side-foot .who b{color:#fff}.side-foot .who span{color:#9a9a9a}
-.side-foot .icon{color:#bdbdbd}.side-foot .icon:hover{color:var(--brand);background:rgba(255,255,255,.07)}
+.side-new:hover{background:var(--pri-soft)!important}
 .avatar{background:var(--brand);color:var(--dark)}
 .btn.pri{background:var(--brand);border-color:var(--brand);color:var(--dark);font-weight:600}
 .btn.pri:hover{background:var(--brand-d);border-color:var(--brand-d)}
@@ -294,5 +288,15 @@ input:focus,select:focus,textarea:focus{outline:3px solid rgba(242,196,40,.35);b
 .stat.click:hover,.imgdrop.over{border-color:var(--brand-d)}
 a.lk:hover{color:var(--brand-ink)}
 .login{background:radial-gradient(circle at 50% 0,#2a2a2a,#191919 60%)}
-#side nav hr{border:none;border-top:1px solid #2e2e2e}
 input[type=checkbox],input[type=radio]{accent-color:var(--brand-d)}
+
+.isugg{margin-top:2px;border:1px solid var(--line);border-radius:var(--r);padding:10px;background:#fcfcfd}
+.isugg-h{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:12.5px;color:var(--muted);margin-bottom:8px}
+.isugg-row{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px}
+.isugg-it{aspect-ratio:1;border:2px solid var(--line);border-radius:9px;background:#fff;padding:3px;cursor:pointer;overflow:hidden;position:relative}
+.isugg-it img{width:100%;height:100%;object-fit:contain;display:block}
+.isugg-it:hover{border-color:var(--brand)}
+.isugg-it.busy{border-color:var(--brand);opacity:.6}
+.isugg-it.busy::after{content:'…';position:absolute;inset:0;display:grid;place-items:center;font-size:22px;font-weight:700}
+.isugg-ph{aspect-ratio:1;border-radius:9px;background:linear-gradient(90deg,#f0f1f4,#f8f8fa,#f0f1f4);background-size:200% 100%;animation:shimmer 1.2s infinite}
+@keyframes shimmer{to{background-position:-200% 0}}

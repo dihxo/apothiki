@@ -30,7 +30,7 @@ function layout(){
   const me=UI.me;
   $('#root').innerHTML=`
   <aside id="side">
-    <a class="brand" href="#dashboard"><img src="logo-dark.png" alt="${esc(settings().name||'ΔΙΗΧΟ')}"><small>Διαχείριση αποθήκης</small></a>
+    <a class="brand" href="#dashboard"><img src="logo.png" alt="${esc(settings().name||'ΔΙΗΧΟ')}"><small>Διαχείριση αποθήκης</small></a>
     <nav id="nav"></nav>
     <div class="side-bottom" id="sideBottom"></div>
     <div class="side-foot"><div class="avatar">${esc((me.name||me.username||'?').slice(0,1).toUpperCase())}</div><div class="who"><b>${esc(me.name||me.username)}</b><span>${esc(ROLES[me.role]||me.role)}</span></div>${SERVER?'<button class="icon" title="Αποσύνδεση" data-act="logout">⎋</button>':''}</div>

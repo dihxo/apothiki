@@ -138,10 +138,47 @@ ACT['u-labels']=el=>{ const p=D.products[el.dataset.id]; printLabels(unitsOf(p.i
 
 /* ---------- product modal ---------- */
 function catOptions(sel, none='— Χωρίς —', exclude){ return `<option value="">${none}</option>`+catsSorted().filter(c=>!exclude||!exclude.has(c.id)).map(c=>`<option value="${c.id}" ${c.id===sel?'selected':''}>${esc(c.path)}</option>`).join(''); }
+/* ---------- αυτόματες προτάσεις φωτογραφιών ---------- */
+function suggHTML(){
+  const p=M&&M.p; if(!p) return '';
+  if(p._suggBusy) return `<div class="isugg"><div class="isugg-h">Ψάχνω φωτογραφίες για «${esc(p._suggQ)}»…</div><div class="isugg-row">${'<span class="isugg-ph"></span>'.repeat(5)}</div></div>`;
+  if(!p._sugg) return '';
+  if(!p._sugg.length) return `<div class="isugg"><div class="isugg-h">Δεν βρέθηκαν φωτογραφίες για «${esc(p._suggQ)}». Δοκίμασε πιο συγκεκριμένο όνομα (μάρκα + μοντέλο).</div></div>`;
+  const page=p._suggPage||0, list=p._sugg.slice(page*5,page*5+5);
+  return `<div class="isugg"><div class="isugg-h"><span>Προτάσεις για «${esc(p._suggQ)}» — κλικ για επιλογή</span>${p._sugg.length>5?`<button class="btn sm ghost" data-act="pm-sugg-more">Άλλες ↻</button>`:''}</div>
+    <div class="isugg-row">${list.map((h,i)=>`<button class="isugg-it${p._suggPick===page*5+i?' busy':''}" data-act="pm-sugg-pick" data-i="${page*5+i}" title="${esc(h.title||'')}"><img src="${esc(h.thumb||h.image)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.closest('button').style.display='none'"></button>`).join('')}</div></div>`;
+}
+function drawSugg(){ const el=$('#imgSugg'); if(el) el.innerHTML=suggHTML(); }
+async function findPhotos(force){
+  if(!SERVER||!M||M.type!=='product') return; const p=M.p, q=(p.name||'').trim();
+  if(q.length<3) return force?toast('Γράψε πρώτα το όνομα του προϊόντος.', true):null;
+  if(!force&&q===p._suggQ) return;
+  p._suggQ=q; p._suggBusy=true; p._sugg=null; p._suggPage=0; drawSugg();
+  try{ const r=await api('/api/imgsearch?q='+encodeURIComponent(q)); if(M&&M.p===p&&p._suggQ===q){ p._sugg=r.results||[]; } }
+  catch(e){ if(M&&M.p===p) p._sugg=[]; }
+  if(M&&M.p===p&&p._suggQ===q){ p._suggBusy=false; drawSugg(); }
+}
+let suggTimer=null;
+ON_INPUT.push(el=>{ if(el.dataset.pm==='name'&&M&&M.type==='product'&&!imgSrc(M.p)){ clearTimeout(suggTimer); suggTimer=setTimeout(()=>findPhotos(false), 900); } return false; });
+ACT['pm-sugg-find']=()=>findPhotos(true);
+ACT['pm-sugg-more']=()=>{ const p=M.p; p._suggPage=((p._suggPage||0)+1)%Math.ceil(p._sugg.length/5); drawSugg(); };
+ACT['pm-sugg-pick']=async el=>{
+  const p=M.p, h=p._sugg&&p._sugg[+el.dataset.i]; if(!h||p._imgBusy) return;
+  p._suggPick=+el.dataset.i; drawSugg();
+  let blob=null;
+  for(const u of [h.image,h.thumb].filter(Boolean)){
+    try{ const r=await fetch('/api/imgfetch?url='+encodeURIComponent(u),{credentials:'same-origin'}); if(r.ok){ const b=await r.blob(); if(/^image\//.test(b.type)){ blob=b; break; } } }catch(e){}
+  }
+  p._suggPick=null;
+  if(!blob){ drawSugg(); return toast('Αυτή η φωτογραφία δεν κατέβηκε — διάλεξε άλλη.', true); }
+  await setProductImage(blob, 'contain');
+};
+
 function productModal(id, kind){
   const p = id ? deepCopy(D.products[id]) : {id:null, kind:kind||'item', tracking:'bulk', name:'', sku:nextSku(), cat:(UI.prodCat&&D.categories[UI.prodCat])?UI.prodCat:'', qty:1, price:'', priceType:kind==='bundle'?'day':'day', replacement:'', location:'', supplier:'', notes:'', components:[], _units:1};
   p.components=p.components||[];
   M={type:'product', p, redraw:drawProductModal}; drawProductModal();
+  if(SERVER&&!imgSrc(p)&&(p.name||'').trim().length>=3) findPhotos(false);
 }
 function drawProductModal(){
   const p=M.p, isB=p.kind==='bundle';
@@ -152,12 +189,12 @@ function drawProductModal(){
     <div class="row" style="align-items:flex-start;gap:16px;flex-wrap:nowrap">
       <div class="imgdrop" id="imgDrop" data-act="pm-img-pick" title="Κλικ για αρχείο ή σύρε εικόνα εδώ">${p._imgBusy?'Επεξεργασία…':(imgSrc(p)?`<img src="${esc(imgSrc(p))}" alt="">`:'📷<br>Εικόνα<br>προϊόντος')}</div>
       <div class="grid" style="gap:8px;flex:1">
-        <div class="small muted">Τετράγωνη εικόνα — κόβεται αυτόματα στο κέντρο.</div>
-        <a class="btn" id="gimgLink" target="_blank" rel="noopener" href="${esc(googleImgUrl(p.name))}">🔍 Βρες εικόνες στο Google</a>
-        <div class="xs muted">Στο Google: δεξί κλικ σε εικόνα → «Αντιγραφή εικόνας», γύρνα εδώ και πάτα <b>Ctrl+V</b> (Mac: Cmd+V).</div>
+        ${SERVER?`<button class="btn" data-act="pm-sugg-find">🔍 Βρες φωτογραφίες αυτόματα</button>`:''}
+        <a class="btn sm ghost" id="gimgLink" target="_blank" rel="noopener" href="${esc(googleImgUrl(p.name))}" title="Δεξί κλικ σε εικόνα → «Αντιγραφή εικόνας» και εδώ Ctrl+V / Cmd+V">Άνοιγμα Google Images ↗</a>
         <div class="row"><button class="btn sm" data-act="pm-img-pick">⬆ Αρχείο / κάμερα</button>${imgSrc(p)?'<button class="btn sm dangerous" data-act="pm-img-del">Αφαίρεση</button>':''}</div>
       </div>
     </div>
+    ${SERVER?`<div id="imgSugg">${suggHTML()}</div>`:''}
     <div class="f2"><label class="f">Όνομα *<input type="text" data-pm="name" value="${esc(p.name)}" autofocus placeholder="${isB?'π.χ. Σετ ήχου για 100 άτομα':'π.χ. Shure SM58'}"></label><label class="f">Κωδικός (QR) *<input type="text" data-pm="sku" value="${esc(p.sku)}" class="mono"></label></div>
     <label class="f">Κατηγορία<select data-pm="cat">${catOptions(p.cat)}</select></label>
     ${!isB?`<div><div class="small muted b" style="margin-bottom:6px">Παρακολούθηση αποθέματος</div><div class="seg"><button class="${p.tracking!=='serial'?'on':''}" data-act="pm-set" data-k="tracking" data-v="bulk">Ποσότητα (π.χ. καλώδια)</button><button class="${p.tracking==='serial'?'on':''}" data-act="pm-set" data-k="tracking" data-v="serial">Σειριακοί αριθμοί (κάθε τεμάχιο με QR)</button></div></div>`:''}
@@ -262,11 +299,11 @@ ACT['cat-del']=el=>{ const id=el.dataset.id, c=D.categories[id]; if(Object.value
 
 /* ---------- product image: paste / drop / file ---------- */
 function googleImgUrl(name){ return 'https://www.google.com/search?tbm=isch&q='+encodeURIComponent((name||'').trim()||'rental equipment'); }
-async function setProductImage(blob){
+async function setProductImage(blob, fit){
   if(!M||M.type!=='product') return;
   if(!blob||!/^image\//.test(blob.type)) return toast('Δεν βρέθηκε εικόνα.', true);
   M.p._imgBusy=true; drawProductModal();
-  try{ const sq=await squareImage(blob); const url=await storeImage(sq); if(M&&M.type==='product'){ M.p.image=url; } toast('Η εικόνα προστέθηκε'); }
+  try{ const sq=await squareImage(blob, 600, fit||'cover'); const url=await storeImage(sq); if(M&&M.type==='product'){ M.p.image=url; } toast('Η εικόνα προστέθηκε'); }
   catch(e){ toast(e.error||e.message||'Η εικόνα δεν αποθηκεύτηκε', true); }
   if(M&&M.type==='product'){ M.p._imgBusy=false; drawProductModal(); }
 }
