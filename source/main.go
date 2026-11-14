@@ -169,6 +169,41 @@ var (
 	sessions = map[string]*session{}
 )
 
+// οι συνδέσεις κρατιούνται σε αρχείο, ώστε να μη χάνονται σε κάθε ενημέρωση/επανεκκίνηση
+func sessFile() string { return filepath.Join(dataDir, "sessions.json") }
+
+func saveSessionsLocked() {
+	now := time.Now()
+	for k, s := range sessions {
+		if now.After(s.Exp) {
+			delete(sessions, k)
+		}
+	}
+	if b, err := json.Marshal(sessions); err == nil {
+		tmp := sessFile() + ".tmp"
+		if os.WriteFile(tmp, b, 0o600) == nil {
+			os.Rename(tmp, sessFile())
+		}
+	}
+}
+
+func loadSessions() {
+	b, err := os.ReadFile(sessFile())
+	if err != nil {
+		return
+	}
+	m := map[string]*session{}
+	if json.Unmarshal(b, &m) == nil {
+		sessMu.Lock()
+		for k, s := range m {
+			if s != nil && time.Now().Before(s.Exp) {
+				sessions[k] = s
+			}
+		}
+		sessMu.Unlock()
+	}
+}
+
 func randHex(n int) string {
 	b := make([]byte, n)
 	rand.Read(b)
@@ -322,6 +357,7 @@ func hLogin(w http.ResponseWriter, r *http.Request) {
 	tok := randHex(32)
 	sessMu.Lock()
 	sessions[tok] = &session{UserID: fmt.Sprint(found["id"]), Exp: time.Now().Add(14 * 24 * time.Hour)}
+	saveSessionsLocked()
 	sessMu.Unlock()
 	http.SetCookie(w, &http.Cookie{Name: "wh_session", Value: tok, Path: "/", HttpOnly: true, SameSite: http.SameSiteLaxMode, MaxAge: 14 * 24 * 3600})
 	mu.Lock()
@@ -335,6 +371,7 @@ func hLogout(w http.ResponseWriter, r *http.Request) {
 	if c, err := r.Cookie("wh_session"); err == nil {
 		sessMu.Lock()
 		delete(sessions, c.Value)
+		saveSessionsLocked()
 		sessMu.Unlock()
 	}
 	http.SetCookie(w, &http.Cookie{Name: "wh_session", Value: "", Path: "/", MaxAge: -1})
@@ -816,6 +853,7 @@ func main() {
 		log.SetOutput(io.MultiWriter(os.Stdout, lf))
 	}
 	loadDB()
+	loadSessions()
 
 	sub, _ := fs.Sub(webFS, "web")
 	static := http.FileServer(http.FS(sub))
