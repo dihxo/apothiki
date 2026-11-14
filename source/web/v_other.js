@@ -182,11 +182,13 @@ ACT['scan-new']=el=>{ productModal(null,'item'); M.p.sku=el.dataset.code; drawPr
 ACT['new-mnt-scan']=el=>maintenanceModal(null,{productId:el.dataset.p, unitId:el.dataset.u, start:today()});
 
 /* ---------- settings ---------- */
-VIEWS.setup = () => {
+VIEWS.setup = arg => {
+  if(arg){ UI.setTab=arg; }
   const tab=UI.setTab; const admin=can('admin');
-  const tabs=(SERVER?[['company','Εταιρεία & έγγραφα'],['users','Χρήστες'],['network','Δίκτυο & συσκευές'],['backup','Αντίγραφα ασφαλείας'],['log','Ιστορικό ενεργειών'],['me','Ο λογαριασμός μου']]:[['company','Εταιρεία & έγγραφα'],['access','Χρήστες & πρόσβαση'],['backup','Αντίγραφα ασφαλείας'],['log','Ιστορικό ενεργειών']]).filter(([k])=>admin||['network','me','access'].includes(k));
+  const tabs=(SERVER?[['company','Εταιρεία & έγγραφα'],['users','Χρήστες'],['crewlink','Πρόγραμμα προσωπικού'],['network','Δίκτυο & συσκευές'],['backup','Αντίγραφα ασφαλείας'],['log','Ιστορικό ενεργειών'],['me','Ο λογαριασμός μου']]:[['company','Εταιρεία & έγγραφα'],['access','Χρήστες & πρόσβαση'],['backup','Αντίγραφα ασφαλείας'],['log','Ιστορικό ενεργειών']]).filter(([k])=>admin||['network','me','access'].includes(k));
   const cur=tabs.find(t=>t[0]===tab)?tab:tabs[0][0];
   let body='';
+  if(cur==='crewlink'){ body=`<div class="card grid" style="gap:14px;max-width:820px"><h2 style="margin:0">Πρόγραμμα προσωπικού</h2>${crewLinkBody()}</div>`; }
   if(cur==='company'){ const s=settings(); const f=(k,l,t='text',ph='')=>`<label class="f">${l}<input type="${t}" data-sm="${k}" value="${esc(s[k]??'')}" placeholder="${esc(ph)}"></label>`;
     body=`<div class="card grid" style="gap:14px;max-width:820px"><h2 style="margin:0">Στοιχεία εταιρείας</h2>
     <div class="f2">${f('name','Επωνυμία')}${f('phone','Τηλέφωνο')}</div><div class="f2">${f('address','Διεύθυνση')}${f('city','Πόλη / ΤΚ')}</div><div class="f3">${f('vat','ΑΦΜ')}${f('doy','ΔΟΥ')}${f('email','Email')}</div>

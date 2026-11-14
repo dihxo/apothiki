@@ -414,7 +414,7 @@ input[type=checkbox],input[type=radio]{accent-color:var(--brand-d)}
   #toast{bottom:calc(90px + env(safe-area-inset-bottom))!important}
 }
 @media(max-width:700px){
-  .ph>.row .btn:not(.pri){display:none}
+  .ph>.row .btn:not(.pri):not(.keep-m){display:none}
   .tabs{overflow-x:auto;white-space:nowrap;flex-wrap:nowrap;scrollbar-width:none}
   .card-h{flex-wrap:wrap}
   .card-h input[type=search]{max-width:none!important;width:100%}
