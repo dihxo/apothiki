@@ -170,7 +170,13 @@ ACT['modal-close']=()=>closeModal();
 ACT['confirm-no']=()=>{ const p=M&&M.prev; if(p&&p.redraw){ M=p; p.redraw(); } else closeModal(); };
 ACT['confirm-yes']=async(el)=>{ el.disabled=true; const f=M.onYes; const res=await f(); if(M&&M.type==='confirm'){ const p=M.prev; if(res===false && p&&p.redraw){ M=p; p.redraw(); } else closeModal(); } };
 ACT['burger']=()=>document.body.classList.toggle('menu');
-ACT['dd']=el=>{ const d=el.closest('.dd'); const was=d.classList.contains('open'); $$('.dd.open').forEach(x=>x.classList.remove('open')); if(!was) d.classList.add('open'); };
+ACT['dd']=el=>{ const d=el.closest('.dd'); const was=d.classList.contains('open'); $$('.dd.open').forEach(x=>x.classList.remove('open','left')); document.body.classList.remove('ddopen');
+  if(was) return; d.classList.add('open');
+  if(window.innerWidth<=900){ document.body.classList.add('ddopen'); return; }
+  const m=d.querySelector('.dd-m'); if(m&&m.getBoundingClientRect().left<8) d.classList.add('left'); };
+ACT['dd-close']=()=>{ $$('.dd.open').forEach(x=>x.classList.remove('open','left')); document.body.classList.remove('ddopen'); };
+document.addEventListener('click', e=>{ if(!document.body.classList.contains('ddopen')) return; if(!e.target.closest('.dd')) ACT['dd-close'](); else if(e.target.closest('.dd-m button')) setTimeout(()=>ACT['dd-close'](),0); }, true);
+window.addEventListener('hashchange', ()=>ACT['dd-close']());
 ACT['logout']=async()=>{ try{ await api('/api/logout',{}); }catch(e){} UI.me=null; if(es) es.close(); renderLogin(); };
 ACT['tab']=el=>{ UI[el.dataset.k]=el.dataset.v; render(); };
 ACT['go']=el=>{ location.hash=el.dataset.href; };
