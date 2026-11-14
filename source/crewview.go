@@ -112,7 +112,9 @@ func hCrewView(w http.ResponseWriter, r *http.Request) {
 				"from": sv(a, "from"), "to": sv(a, "to"), "note": sv(a, "note"), "order": ord, "team": team, "equipment": equip})
 		}
 	}
-	sort.Slice(jobs, func(i, j int) bool { return fmt.Sprint(jobs[i]["start"], jobs[i]["from"]) < fmt.Sprint(jobs[j]["start"], jobs[j]["from"]) })
+	sort.Slice(jobs, func(i, j int) bool {
+		return fmt.Sprint(jobs[i]["start"], jobs[i]["from"]) < fmt.Sprint(jobs[j]["start"], jobs[j]["from"])
+	})
 	off := map[string]any{}
 	for id, c := range db.Colls["crew"] {
 		if v, ok := c["off"]; ok {

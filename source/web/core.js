@@ -94,7 +94,22 @@ function connectEvents(){
   es = new EventSource('/api/events');
   es.onmessage = ev => { UI.online=true; updateConn(); const v=+ev.data; if(v>D.version) loadState().catch(()=>{}); };
   es.onerror = () => { UI.online=false; updateConn(); };
+  es.onopen = () => { checkBuild(); };
 }
+/* ---------- αυτόματη ανανέωση όταν βγει νέα έκδοση ---------- */
+let BUILD=null, _bcheck=0;
+async function checkBuild(){
+  if(!SERVER||Date.now()-_bcheck<5000) return; _bcheck=Date.now();
+  try{ const r=await fetch('/api/build',{cache:'no-store'}); const b=(await r.json()).build; if(!b) return;
+    if(BUILD===null){ BUILD=b; return; }
+    if(b!==BUILD){
+      const busy = modalOpen() || (UI.draft&&(UI.draft._dirty||UI.draft._saving)) || (document.activeElement&&/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)) || document.getElementById('dpov')?.classList.contains('on') || document.querySelector('.cam');
+      if(!busy){ location.reload(); return; }
+      if(!document.getElementById('newver')){ const d=document.createElement('div'); d.id='newver'; d.innerHTML='Υπάρχει νέα έκδοση της εφαρμογής <button class="btn sm pri" onclick="location.reload()">Ανανέωση</button>'; document.body.appendChild(d); }
+    } }catch(e){}
+}
+document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) checkBuild(); });
+setInterval(checkBuild, 120000);
 function updateConn(){ const el=$('#conn'); if(!el) return; el.className='conn '+(UI.online?'ok':'bad'); el.title=UI.online?'Συνδεδεμένο — οι αλλαγές συγχρονίζονται ζωντανά':'Χάθηκε η σύνδεση με τον server'; el.querySelector('span').textContent=UI.online?'Live':'Εκτός σύνδεσης'; }
 
 /* ---------- lookups ---------- */

@@ -39,6 +39,8 @@ var webFS embed.FS
 
 const appVersion = "1.0.0"
 
+var buildID = "dev"
+
 var (
 	httpPort  = envInt("WH_PORT", 8080)
 	httpsPort = envInt("WH_HTTPS_PORT", 8443)
@@ -856,6 +858,19 @@ func main() {
 	loadSessions()
 
 	sub, _ := fs.Sub(webFS, "web")
+	{ // ταυτότητα έκδοσης από τα αρχεία της εφαρμογής: οι browsers ανανεώνονται μόνοι τους όταν αλλάξει
+		h := sha256.New()
+		fs.WalkDir(sub, ".", func(p string, d fs.DirEntry, err error) error {
+			if err == nil && !d.IsDir() {
+				if b, e := fs.ReadFile(sub, p); e == nil {
+					h.Write([]byte(p))
+					h.Write(b)
+				}
+			}
+			return nil
+		})
+		buildID = hex.EncodeToString(h.Sum(nil))[:12]
+	}
 	static := http.FileServer(http.FS(sub))
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
@@ -868,6 +883,10 @@ func main() {
 	mux.HandleFunc("POST /api/logout", hLogout)
 	mux.HandleFunc("GET /api/me", hMe)
 	mux.HandleFunc("GET /api/crewview", hCrewView)
+	mux.HandleFunc("GET /api/build", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Cache-Control", "no-store")
+		writeJSON(w, 200, map[string]string{"build": buildID})
+	})
 	mux.HandleFunc("GET /api/state", need(1, hState))
 	mux.HandleFunc("GET /api/events", need(1, hEvents))
 	mux.HandleFunc("GET /api/info", need(1, hInfo))
