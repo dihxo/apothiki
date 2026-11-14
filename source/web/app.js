@@ -30,7 +30,7 @@ function layout(){
   const me=UI.me;
   $('#root').innerHTML=`
   <aside id="side">
-    <div class="logo"><i>▦</i><div>${esc(settings().name||'Αποθήκη')}<small>Διαχείριση εξοπλισμού</small></div></div>
+    <a class="brand" href="#dashboard"><img src="logo-dark.png" alt="${esc(settings().name||'ΔΙΗΧΟ')}"><small>Διαχείριση αποθήκης</small></a>
     <nav id="nav"></nav>
     <div class="side-bottom" id="sideBottom"></div>
     <div class="side-foot"><div class="avatar">${esc((me.name||me.username||'?').slice(0,1).toUpperCase())}</div><div class="who"><b>${esc(me.name||me.username)}</b><span>${esc(ROLES[me.role]||me.role)}</span></div>${SERVER?'<button class="icon" title="Αποσύνδεση" data-act="logout">⎋</button>':''}</div>
@@ -155,7 +155,7 @@ ACT['go']=el=>{ location.hash=el.dataset.href; };
 function renderLogin(msg){
   $('#modal').innerHTML='';
   $('#root').innerHTML=`<div class="login"><form class="card" id="loginForm">
-    <div class="logo" style="padding:0"><i>▦</i><div>Αποθήκη<small>Διαχείριση εξοπλισμού</small></div></div>
+    <div class="brand-login"><img src="logo.png" alt="ΔΙΗΧΟ"><small>Διαχείριση αποθήκης</small></div>
     <label class="f">Όνομα χρήστη<input type="text" name="u" autocomplete="username" autofocus></label>
     <label class="f">Κωδικός<input type="password" name="p" autocomplete="current-password"></label>
     ${msg?`<div class="banner red" style="margin:0">${esc(msg)}</div>`:''}
