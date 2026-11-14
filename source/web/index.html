@@ -2,11 +2,12 @@
 <html lang="el">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Αποθήκη</title>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>ΔΙΗΧΟ Αποθήκη</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
 <link rel="stylesheet" href="style.css">
-<link rel="icon" href="icon.png"><link rel="apple-touch-icon" href="icon.png"><meta name="theme-color" content="#191919">
+<link rel="icon" href="icon.png"><link rel="apple-touch-icon" href="apple-touch-icon.png"><link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#ffffff"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="default"><meta name="apple-mobile-web-app-title" content="Αποθήκη">
 </head>
 <body>
 <div id="root"></div>
@@ -19,6 +20,6 @@
 <script src="v_orders.js"></script>
 <script src="v_inventory.js"></script>
 <script src="v_other.js"></script>
-<script>boot();</script>
+<script>boot(); if('serviceWorker' in navigator && window.WH_MODE!=='artifact' && location.protocol==='https:') navigator.serviceWorker.register('sw.js').catch(()=>{});</script>
 </body>
 </html>

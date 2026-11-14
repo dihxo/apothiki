@@ -15,7 +15,11 @@ VIEWS.dashboard = () => {
   const mnt=Object.values(D.maintenance).filter(m=>m.status!=='done');
   const oRow=(o,date)=>`<div class="li"><div class="grow"><a class="lk" href="#order-${o.id}">${esc(o.number||'')} · ${esc(o.name||custName(o.customerId)||'Χωρίς τίτλο')}</a><div class="small muted">${esc(custName(o.customerId))} ${date?'· '+date:''}</div></div>${pill(o.status)}</div>`;
   const prods=Object.values(D.products);
-  return `
+  const standalone=window.matchMedia('(display-mode: standalone)').matches||navigator.standalone;
+  const ios=/iphone|ipad|ipod/i.test(navigator.userAgent);
+  const mq=isM()?`<div class="mquick"><a href="#wh" class="mq-a">${svg('truck')}<b>Αποθήκη</b><small>${pickToday.length} φόρτωση · ${retToday.length+late.length} επιστροφή</small></a><button class="mq-a" data-act="bn-scan">${svg('scan')}<b>Σάρωση</b><small>QR / barcode</small></button>${can('staff')?`<button class="mq-a" data-act="new-order">${svg('orders')}<b>Νέα</b><small>παραγγελία</small></button>`:''}</div>
+    ${!standalone&&!UI.noInstall&&(ios||window._bip)?`<div class="banner minst"><img src="icon-192.png" alt=""><div class="grow"><b>Βάλε την Αποθήκη στην αρχική οθόνη</b><div class="small">${ios?'Πάτα <b>Κοινοποίηση</b> <span style="font-size:15px">⎋</span> κάτω και μετά <b>«Προσθήκη στην οθόνη Αφετηρίας»</b>.':'Ανοίγει σαν κανονική εφαρμογή, σε πλήρη οθόνη.'}</div></div>${!ios?'<button class="btn pri sm" data-act="pwa-install">Εγκατάσταση</button>':''}<button class="icon" data-act="pwa-hide">✕</button></div>`:''}`:'';
+  return mq+`
   <div class="ph"><div><h1>${(h=>h<12?'Καλημέρα':(h<18?'Καλησπέρα':'Καλό βράδυ'))(new Date().getHours())}${UI.me.name?', '+esc(UI.me.name.split(' ')[0]):''} 👋</h1><p class="sub">${new Date().toLocaleDateString('el-GR',{weekday:'long',day:'numeric',month:'long',year:'numeric'})}</p></div>
   ${can('staff')?`<div class="row"><button class="btn" data-act="new-product">+ Νέο προϊόν</button><button class="btn pri" data-act="new-order">+ Νέα παραγγελία</button></div>`:''}</div>
   ${!prods.length?`<div class="card" style="margin-bottom:16px"><div class="empty"><b>Καλώς ήρθες! Ας στήσουμε την αποθήκη σου.</b>1. Στοιχεία εταιρείας στις Ρυθμίσεις · 2. Κατηγορίες · 3. Προϊόντα (με ποσότητα ή σειριακούς αριθμούς) · 4. Πελάτες · 5. Παραγγελίες
@@ -60,11 +64,16 @@ VIEWS.orders = () => {
     <td>${cn?`<span class="cav" style="background:${avColor(cn)}">${esc(initials(cn))}</span>${esc(cn)}`:'<span class="faint">—</span>'}${o.name?`<div class="xs muted" style="margin-left:32px">${esc(o.name)}</div>`:''}</td>
     <td>${pill(o.status)}</td><td class="${lateS?'late':''}" style="white-space:nowrap">${fmtD(o.start)} ${esc(o.startTime||'')}</td><td class="faint">→</td><td class="${lateE?'late':''}" style="white-space:nowrap">${fmtD(o.end)} ${esc(o.endTime||'')}</td>
     <td class="num b">${money(tt.total)}</td><td>${o.status==='cancelled'?'':pill(ps,PAY)}</td></tr>`; }).join('');
+  const mrows=pageList.map(o=>{ const tt=orderTotals(o); const cn=custName(o.customerId); const ps=payStatus(o);
+    const late=(o.status==='reserved'&&o.start<=t)||(o.status==='started'&&(o.end||o.start)<=t);
+    return `<a class="mrow" href="#order-${o.id}"><div class="mrow-m"><div class="mrow-t"><b>${esc(o.number)}</b> ${pill(o.status)}</div><div class="mrow-n">${esc(cn||o.name||'—')}</div><div class="mrow-s ${late?'late':''}">${fmtD(o.start)} → ${fmtD(o.end)}${o.venue?' · '+esc(o.venue):''}</div></div>
+      <div class="mrow-r"><b>${money(tt.total)}</b>${o.status==='cancelled'?'':pill(ps,PAY)}</div></a>`; }).join('');
   const ck=(set,k,l,n)=>`<label><input type="checkbox" data-act="of-ck" data-set="${set}" data-v="${k}" ${UI[set].has(k)?'checked':''}> ${l}<span>(${n||0})</span></label>`;
   const tabs=[['all','Όλες'],['upcoming','Επερχόμενες'],['late','Καθυστερημένες'],['short','Με ελλείψεις']];
   return `<div class="ph"><div><h1>Παραγγελίες</h1></div>${can('staff')?`<button class="btn pri" data-act="new-order">Νέα παραγγελία</button>`:''}</div>
   <div class="split-l">
-    <div class="fpanel">
+    ${isM()?`<button class="btn mfilt" data-act="mfilt">${UI.mfilt?'Απόκρυψη φίλτρων ▴':'Φίλτρα & εξαγωγή ▾'}${(UI.ordSt.size||UI.ordPay.size||UI.ordFrom||UI.ordTo)?' •':''}</button>`:''}
+    <div class="fpanel${isM()&&!UI.mfilt?' mhide':''}">
       <div class="card"><h4>Κατάσταση</h4><div class="fbody">${ck('ordSt','concept','Πρόχειρο',stCount.concept)}${ck('ordSt','option','Option',stCount.option)}${ck('ordSt','reserved','Κράτηση',stCount.reserved)}${ck('ordSt','started','Παραλήφθηκε',stCount.started)}${ck('ordSt','stopped','Επιστράφηκε',stCount.stopped)}${ck('ordSt','cancelled','Ακυρώθηκε',stCount.cancelled)}</div></div>
       <div class="card"><h4>Πληρωμή</h4><div class="fbody">${ck('ordPay','due','Οφειλή',payCount.due)}${ck('ordPay','partial','Μερική πληρωμή',payCount.partial)}${ck('ordPay','paid','Εξοφλήθηκε',payCount.paid)}${ck('ordPay','over','Υπερπληρωμή',payCount.over)}</div></div>
       <div class="card"><h4>Περίοδος</h4><div style="padding:12px 14px;display:grid;gap:8px"><label class="f">Από<input type="date" data-bindc="ordFrom" value="${esc(UI.ordFrom)}"></label><label class="f">Έως<input type="date" data-bindc="ordTo" value="${esc(UI.ordTo)}"></label>${UI.ordFrom||UI.ordTo||UI.ordSt.size||UI.ordPay.size?'<button class="btn sm" data-act="of-clear">Καθαρισμός φίλτρων</button>':''}</div></div>
@@ -74,10 +83,15 @@ VIEWS.orders = () => {
       <div class="tabs" style="margin-bottom:14px">${tabs.map(([k,l])=>`<button class="${UI.ordTab===k?'on':''}" data-act="tab" data-k="ordTab" data-v="${k}">${l}</button>`).join('')}</div>
       <div class="metrics"><div class="card"><div class="l">Παραγγελίες</div><div class="n">${list.length}</div></div><div class="card"><div class="l">Τεμάχια</div><div class="n">${items.toLocaleString('el-GR')}</div></div><div class="card"><div class="l">Έσοδα</div><div class="n">${money(rev)}</div></div><div class="card"><div class="l">Οφειλές</div><div class="n">${money(due)}</div></div></div>
       <div class="card p0"><div class="card-h"><input type="search" class="grow" placeholder="Αναζήτηση αριθμού, πελάτη, χώρου…" data-bind="ordQ" value="${esc(UI.ordQ)}" style="max-width:380px"><div class="row small muted">${list.length?`${(UI.ordPage-1)*per+1}–${Math.min(list.length,UI.ordPage*per)} από ${list.length}`:''}${pages>1?`<button class="btn sm" data-act="o-page" data-v="-1" ${UI.ordPage<=1?'disabled':''}>‹</button><button class="btn sm" data-act="o-page" data-v="1" ${UI.ordPage>=pages?'disabled':''}>›</button>`:''}</div></div>
-      ${list.length?`<div class="tw"><table><thead><tr><th>#</th><th>Πελάτης</th><th>Κατάσταση</th><th>Από</th><th></th><th>Έως</th><th class="num">Τιμή</th><th>Πληρωμή</th></tr></thead><tbody>${rows}</tbody></table></div>`:`<div class="empty"><b>Δεν βρέθηκαν παραγγελίες</b></div>`}</div>
+      ${list.length&&isM()?`<div class="mlist">${mrows}</div>`:list.length?`<div class="tw"><table><thead><tr><th>#</th><th>Πελάτης</th><th>Κατάσταση</th><th>Από</th><th></th><th>Έως</th><th class="num">Τιμή</th><th>Πληρωμή</th></tr></thead><tbody>${rows}</tbody></table></div>`:`<div class="empty"><b>Δεν βρέθηκαν παραγγελίες</b></div>`}</div>
     </div>
   </div>`;
 };
+window.addEventListener('beforeinstallprompt', e=>{ e.preventDefault(); window._bip=e; if(route()==='dashboard') scheduleRender(); });
+ACT['pwa-install']=async()=>{ const e=window._bip; if(!e) return; e.prompt(); try{ await e.userChoice; }catch(_){} window._bip=null; render(); };
+ACT['pwa-hide']=()=>{ UI.noInstall=true; try{ localStorage.setItem('noInstall','1'); }catch(e){} render(); };
+try{ if(localStorage.getItem('noInstall')) UI.noInstall=true; }catch(e){}
+ACT['mfilt']=()=>{ UI.mfilt=!UI.mfilt; render(); };
 ACT['of-ck']=el=>{ const set=UI[el.dataset.set]; el.checked?set.add(el.dataset.v):set.delete(el.dataset.v); UI.ordPage=1; render(); };
 ACT['of-clear']=()=>{ UI.ordSt.clear(); UI.ordPay.clear(); UI.ordFrom=''; UI.ordTo=''; render(); };
 ACT['o-page']=el=>{ UI.ordPage+=+el.dataset.v; render(); window.scrollTo(0,0); };
@@ -329,7 +343,7 @@ ACT['o-pickup']=async()=>{
   for(const [pid,q] of Object.entries(need)){ const p=D.products[pid]; const v=p?.tracking==='serial'?d.picked.units.filter(id=>D.units[id]?.productId===pid).length:(d.picked.bulk[pid]||0); missing+=Math.max(0,q-v); }
   const go=async()=>{ // ό,τι μαζικό δεν σκαναρίστηκε θεωρείται ότι έφυγε
     for(const [pid,q] of Object.entries(need)){ const p=D.products[pid]; if(p&&p.tracking!=='serial' && !(d.picked.bulk[pid]>0)) d.picked.bulk[pid]=q; }
-    d.status='started'; d.pickedAt=Date.now(); await saveOrder('Παραλαβή '+d.number); render(); };
+    d.status='started'; d.pickedAt=Date.now(); await saveOrder('Παραλαβή '+d.number); afterFlow('Η φόρτωση ολοκληρώθηκε ✓'); };
   if(missing) confirmBox('Παραλαβή με εκκρεμότητες;', `Δεν έχουν σκαναριστεί ${missing} τεμάχια. Να ολοκληρωθεί η παραλαβή;`, 'Ολοκλήρωση παραλαβής', go, false);
   else go();
 };
@@ -338,7 +352,7 @@ ACT['o-return']=async()=>{
   const need=expandLines(d.lines); let missing=0;
   for(const [pid,q] of Object.entries(need)){ const p=D.products[pid]; const v=p?.tracking==='serial'?d.returned.units.filter(id=>D.units[id]?.productId===pid).length:(d.returned.bulk[pid]||0); missing+=Math.max(0,q-v); }
   const go=async(all)=>{ if(all){ for(const [pid,q] of Object.entries(need)){ const p=D.products[pid]; if(p&&p.tracking!=='serial') d.returned.bulk[pid]=q; } for(const id of d.picked.units) if(!d.returned.units.includes(id)) d.returned.units.push(id); }
-    d.status='stopped'; d.returnedAt=Date.now(); await saveOrder('Επιστροφή '+d.number); render(); };
+    d.status='stopped'; d.returnedAt=Date.now(); await saveOrder('Επιστροφή '+d.number); afterFlow('Η επιστροφή ολοκληρώθηκε ✓'); };
   if(missing){ M={type:'ret', redraw:null};
     openModal(`<div class="dlg-h"><h2>Εκκρεμούν ${missing} τεμάχια</h2><button class="icon" data-act="modal-close">✕</button></div><div class="dlg-b">Δεν έχουν σκαναριστεί όλα τα τεμάχια ως επιστραμμένα. Τι θέλεις να γίνει;</div>
     <div class="dlg-f"><button class="btn" data-act="modal-close">Πίσω</button><button class="btn" data-act="o-ret-partial">Κλείσιμο — τα υπόλοιπα λείπουν</button><button class="btn green" data-act="o-ret-all" data-primary>Επέστρεψαν όλα</button></div>`,'sm');
@@ -351,35 +365,41 @@ ACT['o-del']=()=>{ const d=UI.draft; confirmBox(`Διαγραφή ${d.number};`,
 
 /* ---------- scanning in pick / return ---------- */
 function flowScan(code){
-  const d=UI.draft; if(!d) return;
-  const mode=d.status==='reserved'?'pick':(d.status==='started'?'return':null); if(!mode) return;
+  const d=UI.draft; if(!d) return {ok:false,msg:''};
+  const mode=d.status==='reserved'?'pick':(d.status==='started'?'return':null); if(!mode) return {ok:false,msg:'Η παραγγελία δεν είναι σε φόρτωση/επιστροφή'};
   const need=expandLines(d.lines); const f=findCode(code);
-  if(!f || f.type==='order') return toast('Άγνωστος κωδικός: '+code, true);
+  if(!f || f.type==='order') return scanBad('Άγνωστος κωδικός: '+code);
   if(f.type==='unit'){
-    const u=f.unit, p=f.product; if(!need[u.productId]) return toast(`Το ${p?.name||'τεμάχιο'} δεν ανήκει σε αυτή την παραγγελία.`, true);
+    const u=f.unit, p=f.product; if(!need[u.productId]) return scanBad(`Το ${p?.name||'τεμάχιο'} δεν ανήκει σε αυτή την παραγγελία.`);
     if(mode==='pick'){
-      if(d.picked.units.includes(u.id)) return toast(`Το ${u.code} έχει ήδη σκαναριστεί.`, true);
-      const st=unitState(u); if(st.k==='mnt') return toast(`Το ${u.code} είναι σε συντήρηση!`, true); if(st.k==='out') return toast(`Το ${u.code} είναι ήδη εκτός (${st.ref.number}).`, true); if(st.k==='retired') return toast(`Το ${u.code} έχει αποσυρθεί.`, true);
-      if(d.picked.units.filter(id=>D.units[id]?.productId===u.productId).length>=need[u.productId]) return toast(`Έχουν σκαναριστεί ήδη όλα τα ${p.name} (${need[u.productId]}).`, true);
+      if(d.picked.units.includes(u.id)) return scanBad(`Το ${u.code} έχει ήδη σκαναριστεί.`);
+      const st=unitState(u); if(st.k==='mnt') return scanBad(`Το ${u.code} είναι σε συντήρηση!`); if(st.k==='out') return scanBad(`Το ${u.code} είναι ήδη εκτός (${st.ref.number}).`); if(st.k==='retired') return scanBad(`Το ${u.code} έχει αποσυρθεί.`);
+      if(d.picked.units.filter(id=>D.units[id]?.productId===u.productId).length>=need[u.productId]) return scanBad(`Έχουν σκαναριστεί ήδη όλα τα ${p.name} (${need[u.productId]}).`);
       d.picked.units.push(u.id);
     } else {
-      if(!d.picked.units.includes(u.id)) return toast(`Το ${u.code} δεν είχε φύγει με αυτή την παραγγελία.`, true);
-      if(d.returned.units.includes(u.id)) return toast(`Το ${u.code} έχει ήδη επιστραφεί.`, true);
+      if(!d.picked.units.includes(u.id)) return scanBad(`Το ${u.code} δεν είχε φύγει με αυτή την παραγγελία.`);
+      if(d.returned.units.includes(u.id)) return scanBad(`Το ${u.code} έχει ήδη επιστραφεί.`);
       d.returned.units.push(u.id);
     }
-    toast('✓ '+(p?.name||'')+' · '+u.code); dirty(); return;
+    dirty(); return scanOk('✓ '+(p?.name||'')+' · '+u.code);
   }
   const p=f.product;
   if(p.kind==='bundle'){ // όλα τα μαζικά περιεχόμενα του bundle
     let any=false; for(const c of p.components||[]){ const cp=D.products[c.pid]; if(cp&&cp.tracking!=='serial'&&need[c.pid]){ bulkAdj(c.pid, num(c.qty), true); any=true; } }
-    if(!any) return toast('Σκάναρε τα τεμάχια του bundle ένα-ένα.', true);
-    toast('✓ '+p.name); dirty(); return;
+    if(!any) return scanBad('Σκάναρε τα τεμάχια του bundle ένα-ένα.');
+    dirty(); return scanOk('✓ '+p.name);
   }
-  if(!need[p.id]) return toast(`Το ${p.name} δεν ανήκει σε αυτή την παραγγελία.`, true);
-  if(p.tracking==='serial') return toast(`Το ${p.name} έχει σειριακούς — σκάναρε το QR του συγκεκριμένου τεμαχίου.`, true);
-  if(!bulkAdj(p.id,1)) return;
-  toast('✓ '+p.name); dirty();
+  if(!need[p.id]) return scanBad(`Το ${p.name} δεν ανήκει σε αυτή την παραγγελία.`);
+  if(p.tracking==='serial') return scanBad(`Το ${p.name} έχει σειριακούς — σκάναρε το QR του συγκεκριμένου τεμαχίου.`);
+  if(!bulkAdj(p.id,1)){ beep(false); return {ok:false,msg:'Έχουν σκαναριστεί ήδη όλα τα '+p.name}; }
+  dirty(); return scanOk('✓ '+p.name);
 }
+function afterFlow(msg){ if(route().startsWith('wh-')){ toast(msg); beep(true); location.hash='wh'; } else render(); }
+function flowProgress(d){ d=d||UI.draft; if(!d) return ''; const need=expandLines(d.lines); let tot=0, done=0; const ret=d.status==='started';
+  for(const [pid,q] of Object.entries(need)){ const p=D.products[pid]; if(!p) continue; let v; if(p.tracking==='serial'){ v=(ret?d.returned.units:d.picked.units).filter(id=>D.units[id]?.productId===pid).length; } else v=(ret?d.returned.bulk[pid]:d.picked.bulk[pid])||0; tot+=q; done+=Math.min(v,q); }
+  return {tot, done}; }
+function scanOk(msg){ toast(msg); beep(true); const pr=flowProgress(); return {ok:true, msg: msg+(pr&&pr.tot?`  (${pr.done}/${pr.tot})`:'')}; }
+function scanBad(msg){ toast(msg, true); beep(false); return {ok:false, msg}; }
 function bulkAdj(pid, delta, silent){
   const d=UI.draft; const need=expandLines(d.lines)[pid]||0; const box=d.status==='started'?d.returned.bulk:d.picked.bulk;
   let v=(box[pid]||0)+delta;
@@ -441,4 +461,49 @@ function printOrderDoc(o, kind){
     ${kind==='contract'?`<h3 style="margin-top:8mm">Όροι ενοικίασης</h3><div style="font-size:9pt;white-space:pre-wrap">${esc(s.terms||'1. Ο μισθωτής ευθύνεται για τον εξοπλισμό από την παραλαβή έως την επιστροφή του.\n2. Βλάβες, απώλειες ή κλοπές χρεώνονται με βάση την αξία αντικατάστασης.\n3. Καθυστέρηση επιστροφής χρεώνεται με την ημερήσια τιμή ανά ημέρα καθυστέρησης.\n4. Η εγγύηση επιστρέφεται μετά τον έλεγχο του εξοπλισμού.')}</div><div class="sig"><div>Ο εκμισθωτής</div><div>Ο μισθωτής</div></div>`:''}`;
   }
   printHTML(titles[kind]+' '+(no||''), head+body+(s.footer?`<p class="muted" style="margin-top:10mm;font-size:8.5pt;text-align:center">${esc(s.footer)}</p>`:''));
+}
+
+/* ===================== ΛΕΙΤΟΥΡΓΙΑ ΑΠΟΘΗΚΗΣ (κινητό) ===================== */
+VIEWS.wh = id => id ? whOrder(id) : whList();
+function whList(){
+  const t=today(), soon=addDays(t,7);
+  const all=Object.values(D.orders);
+  const pick=sortBy(all.filter(o=>o.status==='reserved'&&o.start<=soon), o=>o.start+(o.startTime||''));
+  const ret=sortBy(all.filter(o=>o.status==='started'), o=>(o.end||o.start)+(o.endTime||''));
+  const card=(o,kind)=>{ const pr=flowProgress(o)||{tot:0,done:0}; const late=kind==='ret'?(o.end||o.start)<t:o.start<t; const when=kind==='ret'?(o.end||o.start):o.start;
+    const dl=when===t?'Σήμερα':(when===addDays(t,1)?'Αύριο':fmtD(when));
+    return `<a class="whc" href="#wh-${o.id}"><div class="whc-l"><div class="whc-n">${esc(o.number)}<span class="whc-d ${late?'late':(when===t?'today':'')}">${late?'Καθυστέρηση · ':''}${dl} ${esc(kind==='ret'?(o.endTime||''):(o.startTime||''))}</span></div>
+      <div class="whc-c">${esc(custName(o.customerId)||o.name||'—')}</div>${o.venue?`<div class="whc-v">📍 ${esc(o.venue)}</div>`:''}</div>
+      <div class="whc-r"><b>${pr.done}/${pr.tot}</b><small>${kind==='ret'?'επέστρεψαν':'έτοιμα'}</small></div></a>`; };
+  return `<div class="ph"><div><h1>Λειτουργία αποθήκης</h1><p class="sub">Φόρτωση και επιστροφή εξοπλισμού με σάρωση</p></div></div>
+    <h2 class="whh">⤴ Για φόρτωση <span>${pick.length}</span></h2>
+    ${pick.length?pick.map(o=>card(o,'pick')).join(''):'<div class="card empty" style="padding:22px">Καμία κράτηση για φόρτωση τις επόμενες 7 ημέρες.</div>'}
+    <h2 class="whh">⤵ Για επιστροφή <span>${ret.length}</span></h2>
+    ${ret.length?ret.map(o=>card(o,'ret')).join(''):'<div class="card empty" style="padding:22px">Δεν υπάρχει εξοπλισμός εκτός.</div>'}`;
+}
+function whOrder(id){
+  const d=getDraft(id);
+  if(!d) return `<div class="empty"><b>Η παραγγελία δεν βρέθηκε</b><a href="#wh">← Λειτουργία αποθήκης</a></div>`;
+  const mode=d.status==='reserved'?'pick':(d.status==='started'?'return':'none');
+  const need=expandLines(d.lines); const pr=flowProgress(d)||{tot:0,done:0}; const pct=pr.tot?Math.round(100*pr.done/pr.tot):0;
+  const staff=can('staff')&&mode!=='none';
+  const head=`<div class="whtop"><a class="btn ghost whback" href="#wh">${svg('back')}</a><div class="grow"><div class="whtop-n">${esc(d.number)} ${pill(d.status)}</div><div class="whtop-c">${esc(custName(d.customerId)||d.name||'')}</div></div><a class="btn sm" href="#order-${d.id}">Παραγγελία</a></div>`;
+  if(mode==='none') return head+`<div class="card whdone">${svg('check')}<h2>${d.status==='stopped'?'Η επιστροφή ολοκληρώθηκε':'Δεν υπάρχει φόρτωση/επιστροφή'}</h2><p class="muted">${esc(d.number)} · ${pill(d.status)}</p><a class="btn pri" href="#wh">← Πίσω στη λίστα</a></div>`;
+  const items=Object.entries(need).map(([pid,q])=>{ const p=D.products[pid]; if(!p) return null; let v, chips='';
+    if(p.tracking==='serial'){ const src=mode==='return'?d.returned.units:d.picked.units; const mine=src.filter(x=>D.units[x]?.productId===pid); v=mine.length;
+      chips=mine.map(x=>`<span class="chip">${esc(D.units[x]?.code||'?')}${staff?`<button data-act="o-unit-rm" data-id="${x}">✕</button>`:''}</span>`).join('');
+      if(mode==='return'){ const out=d.picked.units.filter(x=>D.units[x]?.productId===pid && !d.returned.units.includes(x)); if(out.length) chips+=`<div class="xs muted">Εκκρεμούν: ${out.map(x=>esc(D.units[x]?.code||'?')).join(', ')}</div>`; }
+    } else v=(mode==='return'?d.returned.bulk[pid]:d.picked.bulk[pid])||0;
+    return {p,q,v,chips}; }).filter(Boolean).sort((a,b)=>(a.v>=a.q)-(b.v>=b.q));
+  const rows=items.map(({p,q,v,chips})=>{ const ok=v>=q;
+    const ctrl=!staff?'':(p.tracking==='serial'?`<button class="btn" data-act="o-unit-pick" data-id="${p.id}">Επιλογή τεμαχίων</button>`:
+      `<div class="whq"><button data-act="o-bulk" data-id="${p.id}" data-d="-1" aria-label="Λιγότερα">−</button><button data-act="o-bulk" data-id="${p.id}" data-d="1" aria-label="Περισσότερα">+</button><button class="all" data-act="o-bulk" data-id="${p.id}" data-d="all">Όλα</button></div>`);
+    return `<div class="whi${ok?' ok':''}">${prodImg(p,52)}<div class="whi-m"><div class="whi-n">${esc(p.name)}</div><div class="whi-s mono">${esc(p.sku)}${p.location?' · 📍 '+esc(p.location):''}</div>${chips?`<div class="whi-ch">${chips}</div>`:''}
+      <div class="whi-a">${ctrl}${mode==='return'&&staff?`<button class="btn sm dangerous" data-act="o-damage" data-id="${p.id}">Βλάβη</button>`:''}</div></div>
+      <div class="whi-q">${ok?svg('check'):''}<b>${v}</b><small>/ ${q}</small></div></div>`; }).join('');
+  return head+`<div class="card whprog"><div class="row between"><b>${mode==='pick'?'Φόρτωση':'Επιστροφή'}</b><span><b>${pr.done}</b> / ${pr.tot} τεμ. · ${pct}%</span></div><div class="bar"><i style="width:${pct}%"></i></div></div>
+    ${staff?`<button class="whscan" data-act="o-cam-flow">${svg('scan')} Σάρωση με κάμερα</button>
+    <div class="scanbox whkb"><span>▣</span><input type="text" id="flowScan" placeholder="ή barcode scanner / κωδικός + Enter" data-enter="o-flow-scan" autocomplete="off" inputmode="text"></div>`:''}
+    <div class="whlist">${rows||'<div class="card empty">Η παραγγελία δεν έχει εξοπλισμό.</div>'}</div>
+    ${staff?`<div class="whfoot">${mode==='pick'?`<button class="btn orange" data-act="o-pickup">${pct<100?`Ολοκλήρωση φόρτωσης (λείπουν ${pr.tot-pr.done})`:'Ολοκλήρωση φόρτωσης ✓'}</button>`:`<button class="btn green" data-act="o-return">${pct<100?`Ολοκλήρωση επιστροφής (εκκρεμούν ${pr.tot-pr.done})`:'Ολοκλήρωση επιστροφής ✓'}</button>`}</div>`:''}`;
 }

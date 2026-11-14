@@ -19,12 +19,15 @@ const IC = {
   gear:'<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>',
   search:'<circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/>',
   menu:'<path d="M3 6h18M3 12h18M3 18h18"/>',
-  doc:'<path d="M7 3h7l5 5v13H7z"/><path d="M14 3v5h5"/>'
+  doc:'<path d="M7 3h7l5 5v13H7z"/><path d="M14 3v5h5"/>',
+  truck:'<path d="M2 6h11v10H2zM13 9h4l4 4v3h-8z"/><circle cx="6" cy="18" r="2"/><circle cx="17" cy="18" r="2"/>',
+  back:'<path d="M15 5l-7 7 7 7"/>',
+  check:'<path d="M5 12l5 5 9-10"/>'
 };
 const svg = (k, cls='') => `<svg viewBox="0 0 24 24" class="${cls}">${IC[k]}</svg>`;
 
 function route(){ return (location.hash||'#dashboard').slice(1) || 'dashboard'; }
-window.addEventListener('hashchange', ()=>{ document.body.classList.remove('menu'); const r=route(); if(!r.startsWith('order-')) leaveOrder(); render(); window.scrollTo(0,0); });
+window.addEventListener('hashchange', ()=>{ document.body.classList.remove('menu'); const r=route(); if(!r.startsWith('order-')&&!r.startsWith('wh-')) leaveOrder(); render(); window.scrollTo(0,0); });
 
 function layout(){
   const me=UI.me;
@@ -40,9 +43,25 @@ function layout(){
     <div class="gsearch">${svg('search')}<input type="search" id="gs" placeholder="Αναζήτηση ή σάρωση QR: προϊόν, τεμάχιο, παραγγελία, πελάτης…" autocomplete="off"><div class="gres" id="gres" style="display:none"></div></div>
     <div class="conn" id="conn"><span>Live</span></div>
   </header>
-  <main id="view"></main>`;
+  <main id="view"></main>
+  <nav id="bnav"></nav>`;
   updateConn();
 }
+/* ---------- κάτω μπάρα (κινητό) ---------- */
+function bnavHTML(r){
+  const t=today(); const todo=Object.values(D.orders).filter(o=>(o.status==='reserved'&&o.start<=t)||(o.status==='started'&&(o.end||o.start)<=t)).length;
+  const it=(href,ic,l,on,extra='')=>`<a href="${href}" class="${on?'on':''}">${svg(ic)}<span>${l}</span>${extra}</a>`;
+  return it('#dashboard','home','Αρχική',r==='dashboard')+
+    it('#orders','orders','Παραγγελίες',r==='orders'||r.startsWith('order-'))+
+    `<button class="bn-scan" data-act="bn-scan" aria-label="Σάρωση">${svg('scan')}</button>`+
+    it('#wh','truck','Αποθήκη',r==='wh'||r.startsWith('wh-'), todo?`<i class="bn-cnt">${todo}</i>`:'')+
+    it('#products','box','Εξοπλισμός',r==='products'||r.startsWith('product-'));
+}
+ACT['bn-scan']=()=>{
+  const r=route();
+  if((r.startsWith('wh-')||r.startsWith('order-')) && UI.draft && ['reserved','started'].includes(UI.draft.status)) return ACT['o-cam-flow']();
+  openCamera(code=>{ const found=findCode(code); UI.scan={code, found}; if(location.hash!=='#scan') location.hash='scan'; else render(); return found?{ok:true,msg:'✓ '+code}:{ok:false,msg:'Άγνωστος κωδικός: '+code}; }, 'Σάρωση QR');
+};
 function navHTML(){
   const r=route(), t=today();
   const pick=Object.values(D.orders).filter(o=>o.status==='reserved'&&o.start<=t).length;
@@ -52,7 +71,8 @@ function navHTML(){
   const a=(k,ic,l,extra='',alts=[])=>`<a href="#${k}" class="${on(k,alts)}">${svg(ic)}${l}${extra}</a>`;
   return (can('staff')?`<a class="side-new" data-act="new-order"><i>+</i>Νέα παραγγελία</a>`:'')+
     a('dashboard','home','Αρχική')+
-    a('calendar','cal','Ημερολόγιο')+'<hr>'+
+    a('calendar','cal','Ημερολόγιο')+
+    a('wh','truck','Λειτουργία αποθήκης','',['wh-'])+'<hr>'+
     a('orders','orders','Παραγγελίες', (pick+late)?`<span class="cnt">${pick+late}</span>`:'', ['order-'])+
     a('customers','users','Πελάτες','',['customer-'])+
     a('products','box','Εξοπλισμός','',['product-','categories'])+
@@ -68,6 +88,8 @@ function render(){
   $('#nav').innerHTML=navHTML();
   const sb=$('#sideBottom'); if(sb){ const r0=route(); sb.innerHTML=`<a href="#scan" class="${r0==='scan'?'on':''}">${svg('scan')}Σάρωση barcode</a><a href="#setup" class="${r0==='setup'?'on':''}">${svg('gear')}Ρυθμίσεις</a>`; }
   const r=route(); UI.route=r;
+  const bn=$('#bnav'); if(bn) bn.innerHTML=bnavHTML(r);
+  document.body.classList.toggle('whmode', r.startsWith('wh-'));
   const dash=r.indexOf('-'); const key = VIEWS[r] ? r : (dash>0 ? r.slice(0,dash) : r); const arg = VIEWS[r] ? '' : (dash>0 ? r.slice(dash+1) : '');
   const fn = VIEWS[key] || VIEWS.dashboard;
   let html='';

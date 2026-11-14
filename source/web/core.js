@@ -30,6 +30,8 @@ const uid = p => p + Date.now().toString(36) + Math.random().toString(36).slice(
 const MODE = window.WH_MODE || 'server';
 const SERVER = MODE==='server';
 const today = () => { const d=new Date(); d.setMinutes(d.getMinutes()-d.getTimezoneOffset()); return d.toISOString().slice(0,10); };
+const isM = () => window.matchMedia('(max-width:700px)').matches;
+let _wasM=null; window.addEventListener('resize', ()=>{ const m=isM(); if(_wasM!==null&&m!==_wasM&&typeof scheduleRender==='function') scheduleRender(); _wasM=m; });
 const addDays = (s,n) => { const d=new Date(s+'T00:00:00Z'); d.setUTCDate(d.getUTCDate()+n); return d.toISOString().slice(0,10); };
 const diffDays = (a,b) => Math.round((new Date(b+'T00:00:00Z')-new Date(a+'T00:00:00Z'))/864e5);
 const fmtD = s => s && s!==FAR ? s.split('-').reverse().join('/') : '—';
@@ -290,10 +292,21 @@ function openCamera(onCode, title){
     if(stop) return;
     if(video.readyState>=2){ const sc=Math.min(1,900/Math.max(video.videoWidth,1)); c.width=video.videoWidth*sc; c.height=video.videoHeight*sc; c.getContext('2d').drawImage(video,0,0,c.width,c.height);
       const code=await detectInCanvas(c);
-      if(code && (code!==last || Date.now()-lastT>2500)){ last=code; lastT=Date.now(); if(navigator.vibrate) navigator.vibrate(60); ov.querySelector('[data-last]').textContent='✓ '+code; onCode(code); }
+      if(code && (code!==last || Date.now()-lastT>2500)){ last=code; lastT=Date.now(); const el=ov.querySelector('[data-last]'); let r=null; try{ r=onCode(code); }catch(e){}
+        if(r&&typeof r==='object'&&'ok' in r){ el.textContent=r.msg||code; el.className='cam-last '+(r.ok?'ok':'bad'); ov.querySelector('.cam-box').classList.remove('fl-ok','fl-bad'); void ov.offsetWidth; ov.querySelector('.cam-box').classList.add(r.ok?'fl-ok':'fl-bad'); }
+        else { if(navigator.vibrate) navigator.vibrate(60); el.textContent='✓ '+code; el.className='cam-last ok'; } }
     }
     setTimeout(loop, 250);
   }
+}
+
+/* ---------- ήχος & δόνηση σάρωσης ---------- */
+let _ac=null;
+function beep(ok){
+  try{ if(navigator.vibrate) navigator.vibrate(ok?60:[120,80,120]); }catch(e){}
+  try{ _ac=_ac||new (window.AudioContext||window.webkitAudioContext)(); const t=_ac.currentTime;
+    const tone=(f,st,du)=>{ const o=_ac.createOscillator(), g=_ac.createGain(); o.type=ok?'sine':'square'; o.frequency.value=f; g.gain.setValueAtTime(0.0001,t+st); g.gain.exponentialRampToValueAtTime(ok?0.25:0.12,t+st+0.01); g.gain.exponentialRampToValueAtTime(0.0001,t+st+du); o.connect(g).connect(_ac.destination); o.start(t+st); o.stop(t+st+du+0.02); };
+    if(ok){ tone(1320,0,0.09); } else { tone(220,0,0.16); tone(180,0.2,0.22); } }catch(e){}
 }
 
 /* ---------- printing ---------- */

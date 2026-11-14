@@ -1,0 +1,22 @@
+{
+  "name": "ΔΙΗΧΟ Αποθήκη",
+  "short_name": "Αποθήκη",
+  "description": "Διαχείριση αποθήκης και ενοικιάσεων εξοπλισμού — ΔΙΗΧΟ",
+  "lang": "el",
+  "start_url": "/?pwa=1#dashboard",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#f5f6fa",
+  "theme_color": "#ffffff",
+  "icons": [
+    {"src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any"},
+    {"src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any"},
+    {"src": "icon-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable"}
+  ],
+  "shortcuts": [
+    {"name": "Σάρωση", "url": "/#scan", "icons": [{"src": "icon-192.png", "sizes": "192x192"}]},
+    {"name": "Λειτουργία αποθήκης", "url": "/#wh", "icons": [{"src": "icon-192.png", "sizes": "192x192"}]},
+    {"name": "Παραγγελίες", "url": "/#orders", "icons": [{"src": "icon-192.png", "sizes": "192x192"}]}
+  ]
+}
