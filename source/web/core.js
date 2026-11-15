@@ -342,17 +342,34 @@ function beep(ok){
 }
 
 /* ---------- printing ---------- */
-function printHTML(title, body, extraCss=''){
-  const w=window.open('', '_blank');
-  if(!w){ toast('Ο browser μπλόκαρε το νέο παράθυρο — επίτρεψε τα pop-ups για αυτή τη σελίδα.', true); return; }
-  w.document.write(`<!DOCTYPE html><html lang="el"><head><meta charset="utf-8"><title>${esc(title)}</title><style>
+function docHTML(title, body, extraCss, withBtn){ return `<!DOCTYPE html><html lang="el"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(title)}</title><style>
   *{box-sizing:border-box} body{font-family:Inter,Arial,sans-serif;color:#111;margin:0;padding:14mm;font-size:10.5pt}
   h1{font-size:20pt;margin:0} table{width:100%;border-collapse:collapse;margin-top:6mm} th{text-align:left;border-bottom:1.5px solid #111;padding:2mm 1.5mm;font-size:9pt}
   td{border-bottom:1px solid #ddd;padding:2mm 1.5mm;vertical-align:top} .r{text-align:right} .muted{color:#666} .row{display:flex;justify-content:space-between;gap:10mm}
   .box{border:1px solid #ddd;border-radius:3mm;padding:4mm;flex:1} .tot{margin-left:auto;width:75mm;margin-top:4mm} .tot div{display:flex;justify-content:space-between;padding:1mm 0}
   .tot .g{font-weight:700;font-size:13pt;border-top:1.5px solid #111;padding-top:2mm} .sig{display:flex;gap:20mm;margin-top:22mm} .sig div{flex:1;border-top:1px solid #111;padding-top:2mm;text-align:center;font-size:9pt}
   .noprint{position:fixed;top:8px;right:8px} @media print{.noprint{display:none} body{padding:0}} @page{margin:12mm}
-  ${extraCss}</style></head><body><div class="noprint"><button onclick="print()" style="padding:8px 14px;font-size:14px">Εκτύπωση</button></div>${body}</body></html>`);
+  ${extraCss}</style></head><body>${withBtn?'<div class="noprint"><button onclick="print()" style="padding:8px 14px;font-size:14px">Εκτύπωση</button></div>':''}${body}</body></html>`; }
+function printHTML(title, body, extraCss=''){
+  const inApp = isM() || window.matchMedia('(display-mode: standalone)').matches || navigator.standalone;
+  if(inApp){ // μέσα στην εφαρμογή: προβολή με κουμπί επιστροφής (στο κινητό τα νέα παράθυρα δεν έχουν «πίσω»)
+    let ov=document.getElementById('docov'); if(ov) ov.remove();
+    ov=document.createElement('div'); ov.id='docov';
+    ov.innerHTML=`<div class="docbar"><button class="btn" data-doc="close">← Πίσω</button><div class="docttl">${esc(title)}</div><button class="btn pri" data-doc="print">Εκτύπωση / PDF</button></div><iframe title="${esc(title)}"></iframe>`;
+    document.body.appendChild(ov); document.body.classList.add('docopen');
+    const fr=ov.querySelector('iframe'); fr.srcdoc=docHTML(title, body, extraCss, false);
+    const PW=820; const fit=()=>{ const wrap=ov.clientWidth, bar=ov.querySelector('.docbar').offsetHeight; const k=Math.min(1, wrap/PW);
+      fr.style.width=PW+'px'; fr.style.height=((ov.clientHeight-bar)/k)+'px'; fr.style.transform=`scale(${k})`; fr.style.transformOrigin='0 0'; };
+    fit(); window.addEventListener('resize', fit);
+    ov.addEventListener('click', e=>{ const a=e.target.closest('[data-doc]'); if(!a) return;
+      if(a.dataset.doc==='close'){ ov.remove(); document.body.classList.remove('docopen'); }
+      else { try{ fr.contentWindow.focus(); fr.contentWindow.print(); }catch(_){ toast('Η εκτύπωση δεν είναι διαθέσιμη εδώ.', true); } } });
+    history.pushState({doc:1}, ''); const pop=()=>{ if(document.getElementById('docov')){ ov.remove(); document.body.classList.remove('docopen'); } window.removeEventListener('popstate', pop); }; window.addEventListener('popstate', pop);
+    return;
+  }
+  const w=window.open('', '_blank');
+  if(!w){ toast('Ο browser μπλόκαρε το νέο παράθυρο — επίτρεψε τα pop-ups για αυτή τη σελίδα.', true); return; }
+  w.document.write(docHTML(title, body, extraCss, true));
   w.document.close(); setTimeout(()=>{ try{ w.focus(); w.print(); }catch(e){} }, 400);
 }
 function printLabels(items){ // [{code,name,sub}]

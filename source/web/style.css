@@ -518,3 +518,8 @@ tr.dragging{background:var(--pri-soft)!important;box-shadow:0 6px 20px rgba(0,0,
 tr.dragging .drag{cursor:grabbing;color:var(--dark)}
 body.noselect{user-select:none;-webkit-user-select:none}
 @media(max-width:700px){.drag{font-size:18px;padding:8px 8px 8px 0}}
+#docov{position:fixed;inset:0;z-index:400;background:#e9eaee;display:flex;flex-direction:column}
+.docbar{display:flex;align-items:center;gap:8px;padding:calc(8px + env(safe-area-inset-top)) 10px 8px;background:#fff;border-bottom:1px solid var(--line);box-shadow:0 2px 8px rgba(0,0,0,.05)}
+.docttl{flex:1;min-width:0;font-weight:600;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:center}
+#docov iframe{flex:none;border:none;background:#fff;display:block}
+body.docopen{overflow:hidden}
