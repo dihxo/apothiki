@@ -34,7 +34,7 @@ function layout(){
   const me=UI.me;
   $('#root').innerHTML=`
   <aside id="side">
-    <a class="brand" href="#dashboard"><img src="logo.png" alt="${esc(settings().name||'ΔΙΗΧΟ')}"><small>Διαχείριση αποθήκης</small></a>
+    <button class="icon side-x" data-act="menu-close" aria-label="Κλείσιμο μενού">✕</button><a class="brand" href="#dashboard"><img src="logo.png" alt="${esc(settings().name||'ΔΙΗΧΟ')}"><small>Διαχείριση αποθήκης</small></a>
     <nav id="nav"></nav>
     <div class="side-bottom" id="sideBottom"></div>
     <div class="side-foot"><div class="avatar">${esc((me.name||me.username||'?').slice(0,1).toUpperCase())}</div><div class="who"><b>${esc(me.name||me.username)}</b><span>${esc(ROLES[me.role]||me.role)}</span></div>${SERVER?'<button class="icon" title="Αποσύνδεση" data-act="logout">⎋</button>':''}</div>
@@ -170,6 +170,13 @@ ACT['modal-close']=()=>closeModal();
 ACT['confirm-no']=()=>{ const p=M&&M.prev; if(p&&p.redraw){ M=p; p.redraw(); } else closeModal(); };
 ACT['confirm-yes']=async(el)=>{ el.disabled=true; const f=M.onYes; const res=await f(); if(M&&M.type==='confirm'){ const p=M.prev; if(res===false && p&&p.redraw){ M=p; p.redraw(); } else closeModal(); } };
 ACT['burger']=()=>document.body.classList.toggle('menu');
+ACT['menu-close']=()=>document.body.classList.remove('menu');
+/* κλείσιμο μενού: κλικ έξω, κλικ σε σύνδεσμο (και στην ίδια σελίδα), σύρσιμο προς τα αριστερά */
+document.addEventListener('click', e=>{ if(!document.body.classList.contains('menu')) return;
+  if(e.target.closest('#burger')) return;
+  if(!e.target.closest('#side') || e.target.closest('#side a, #side button')) setTimeout(()=>document.body.classList.remove('menu'),0); }, true);
+(()=>{ let x0=null,y0=null; document.addEventListener('touchstart', e=>{ if(!document.body.classList.contains('menu')) return; const t=e.touches[0]; x0=t.clientX; y0=t.clientY; }, {passive:true});
+  document.addEventListener('touchend', e=>{ if(x0===null) return; const t=e.changedTouches[0]; if(x0-t.clientX>60 && Math.abs(t.clientY-y0)<60) document.body.classList.remove('menu'); x0=null; }, {passive:true}); })();
 ACT['dd']=el=>{ const d=el.closest('.dd'); const was=d.classList.contains('open'); $$('.dd.open').forEach(x=>x.classList.remove('open','left')); document.body.classList.remove('ddopen');
   if(was) return; d.classList.add('open');
   if(window.innerWidth<=900){ document.body.classList.add('ddopen'); return; }
