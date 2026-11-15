@@ -177,7 +177,7 @@ ACT['pm-sugg-pick']=async el=>{
 };
 
 function productModal(id, kind){
-  const p = id ? deepCopy(D.products[id]) : {id:null, kind:kind||'item', tracking:'bulk', name:'', sku:'', cat:(UI.prodCat&&D.categories[UI.prodCat])?UI.prodCat:'', qty:1, price:'', priceType:kind==='bundle'?'day':'day', replacement:'', location:'', supplier:'', notes:'', components:[], _units:1};
+  const p = id ? deepCopy(D.products[id]) : {id:null, kind:kind||'item', tracking:'bulk', name:'', sku:'', cat:(UI.prodCat&&D.categories[UI.prodCat])?UI.prodCat:'', qty:1, price:'', priceType:'day', extraMode:'pct', extraValue:10, replacement:'', location:'', supplier:'', notes:'', components:[], _units:1};
   p.components=p.components||[];
   M={type:'product', p, redraw:drawProductModal}; drawProductModal();
   if(SERVER&&!imgSrc(p)&&(p.name||'').trim().length>=3) findPhotos(false);

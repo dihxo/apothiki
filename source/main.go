@@ -114,6 +114,32 @@ func loadDB() {
 	}
 }
 
+// Μεταβολές δεδομένων που εκτελούνται μία φορά (με αντίγραφο ασφαλείας πριν).
+func migrate() {
+	mu.Lock()
+	defer mu.Unlock()
+	if db.Counters["mig_extra10"] == 0 {
+		if b, err := json.Marshal(db); err == nil {
+			bd := filepath.Join(dataDir, "backups")
+			os.MkdirAll(bd, 0o755)
+			os.WriteFile(filepath.Join(bd, "pre-extra10-"+time.Now().Format("20060102-150405")+".json"), b, 0o644)
+		}
+		n := 0
+		for _, p := range db.Colls["products"] {
+			p["priceType"] = "day"
+			p["extraMode"] = "pct"
+			p["extraValue"] = 10
+			p["updatedAt"] = now()
+			n++
+		}
+		db.Counters["mig_extra10"] = 1
+		db.Version++
+		addLogLocked("Σύστημα", fmt.Sprintf("Τιμολόγηση όλων των προϊόντων (%d): ανά ημέρα, κάθε επόμενη ημέρα +10%%", n))
+		saveDBLocked()
+		log.Printf("migration extra10: %d products", n)
+	}
+}
+
 func saveDBLocked() {
 	b, err := json.Marshal(db)
 	if err != nil {
@@ -855,6 +881,7 @@ func main() {
 		log.SetOutput(io.MultiWriter(os.Stdout, lf))
 	}
 	loadDB()
+	migrate()
 	loadSessions()
 
 	sub, _ := fs.Sub(webFS, "web")
