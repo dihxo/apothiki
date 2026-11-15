@@ -544,14 +544,53 @@ ACT['doc']=async el=>{
   if(kind==='invoice' && !d.invoiceNo && can('staff')){ d.invoiceNo=(settings().invoicePrefix||'ΠΤ-')+String(await nextNumber('invoice')).padStart(4,'0'); await saveOrder(); }
   printOrderDoc(d, kind);
 };
+const DOC_CSS=`@page{size:A4;margin:12mm 12mm 14mm} body{padding:0;font-size:9.5pt;color:#1d1d1f;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .dh{display:flex;justify-content:space-between;align-items:flex-start;gap:10mm}
+  .dlogo{height:17mm;width:auto;display:block;margin:0 0 3mm -1mm}
+  .dco{font-size:8.3pt;color:#666;line-height:1.45}.dco b{color:#1d1d1f;font-size:9pt}
+  .dh-r{text-align:right;min-width:62mm}
+  .dtype{font-size:8.5pt;letter-spacing:.28em;font-weight:700;color:#8a6a00}
+  .dno{font-size:22pt;font-weight:800;letter-spacing:-.02em;margin:1mm 0 2mm}
+  table.dmeta{width:auto;margin:0 0 0 auto;border-collapse:collapse}.dmeta td{border:none;padding:.6mm 0 .6mm 5mm;font-size:8.5pt}.dmeta td:first-child{color:#888}.dmeta td:last-child{font-weight:600;text-align:right}
+  .dbar{height:1.2mm;background:linear-gradient(90deg,#f2c428,#f7dc7a);border-radius:1mm;margin:5mm 0}
+  .dinfo{display:grid;grid-template-columns:1fr 1fr;gap:5mm}
+  .dcard{background:#fafaf7;border:1px solid #eee;border-radius:3mm;padding:3.5mm 4mm}
+  .dlab{font-size:7.3pt;letter-spacing:.18em;text-transform:uppercase;font-weight:700;color:#a07c00;margin-bottom:1.2mm}
+  .dbig{font-size:11.5pt;font-weight:700;margin-bottom:1mm}.dsm{font-size:8.6pt;color:#555;line-height:1.5}
+  table.ditems{margin-top:7mm;border-collapse:collapse;width:100%}
+  .ditems th{font-size:7.5pt;letter-spacing:.08em;text-transform:uppercase;color:#777;font-weight:700;border-bottom:1.5px solid #1d1d1f;padding:2mm 2mm}
+  .ditems td{border-bottom:1px solid #ececec;padding:2.4mm 2mm;vertical-align:middle;font-size:9pt}
+  .ditems tbody tr:nth-child(even) td{background:#fcfcfa}
+  .ditems td.dn,.ditems th.dn{width:7mm;color:#aaa;text-align:center;font-size:8pt}
+  .ditems td.dimg{width:13mm;padding:1.5mm}.dimg img{width:11mm;height:11mm;object-fit:contain;display:block;border-radius:1.5mm;background:#fff}
+  .dit{font-weight:600;font-size:9.6pt;line-height:1.3}.dsub{font-size:7.8pt;color:#888;margin-top:.6mm;line-height:1.35}
+  .ditems td.r,.ditems th.r{text-align:right;white-space:nowrap}.ditems td.b{font-weight:700}
+  .ditems tr{break-inside:avoid}
+  .dsec td{background:#fdf3cf!important;font-size:7.5pt;letter-spacing:.12em;text-transform:uppercase;font-weight:700;color:#7a5b00;padding:1.6mm 2mm}
+  .dtotw{display:flex;justify-content:flex-end;margin-top:5mm;break-inside:avoid}
+  .dtot{width:76mm}.dtot>div{display:flex;justify-content:space-between;padding:1.4mm 3mm;font-size:9pt}.dtot>div span:first-child{color:#666}
+  .dgrand{background:#191919;color:#fff;border-radius:2.5mm;margin-top:1.5mm;padding:3mm 4mm!important;font-size:12pt!important;font-weight:800}
+  .dgrand span:first-child{color:#fff!important;letter-spacing:.06em;text-transform:uppercase;font-size:9.5pt;align-self:center}.dgrand span:last-child{color:#f2c428}
+  .ddep{font-size:8.5pt!important}
+  .dnotes{display:grid;gap:4mm;margin-top:7mm;font-size:8.6pt;color:#444;line-height:1.5;break-inside:avoid}
+  .daccept{margin-top:8mm;border:1px dashed #d8d0b0;border-radius:3mm;padding:4mm;break-inside:avoid}
+  .dsig{display:grid;grid-template-columns:1.3fr 1.3fr 1fr;gap:8mm;margin-top:12mm}.dsig div{border-top:1px solid #999;padding-top:1.5mm;font-size:8pt;color:#777}
+  .dfoot{margin-top:10mm;padding-top:3mm;border-top:1px solid #eee;text-align:center;font-size:7.8pt;color:#999}
+  .sig{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8mm;margin-top:16mm}.sig div{border-top:1px solid #999;padding-top:1.5mm;font-size:8.5pt;color:#666}
+  table:not(.ditems):not(.dmeta){margin-top:6mm} table:not(.ditems):not(.dmeta) th{font-size:8pt;letter-spacing:.06em;text-transform:uppercase;color:#777}`;
 function printOrderDoc(o, kind){
   const s=settings(), c=D.customers[o.customerId]||{}, tt=orderTotals(o);
   const titles={quote:'ΠΡΟΣΦΟΡΑ', delivery:'ΔΕΛΤΙΟ ΑΠΟΣΤΟΛΗΣ', invoice:'ΠΡΟΤΙΜΟΛΟΓΙΟ', contract:'ΣΥΜΦΩΝΗΤΙΚΟ ΕΝΟΙΚΙΑΣΗΣ ΕΞΟΠΛΙΣΜΟΥ'};
   const no = kind==='quote'?o.quoteNo:(kind==='invoice'?o.invoiceNo:o.number);
-  const head=`<div class="row"><div>${LOGO?`<img src="${LOGO}" alt="" style="height:19mm;width:auto;display:block;margin:0 0 3mm -1mm">`:''}<div style="font-weight:700;font-size:${LOGO?'11pt':'20pt'}">${esc(s.name||(LOGO?'':'Η εταιρεία μου'))}</div><div class="muted">${esc(s.address||'')} ${esc(s.city||'')}<br>${s.phone?'Τηλ. '+esc(s.phone):''} ${s.email?' · '+esc(s.email):''}<br>${s.vat?'ΑΦΜ '+esc(s.vat):''} ${s.doy?' · ΔΟΥ '+esc(s.doy):''}</div></div>
-    <div style="text-align:right"><div style="font-size:15pt;font-weight:700">${titles[kind]}</div><div>Αρ. <b>${esc(no||'')}</b></div><div class="muted">Ημ/νία: ${fmtD(today())}</div><div class="muted">Παραγγελία: ${esc(o.number)}</div></div></div>
-    <div style="height:1mm;background:#f2c428;margin-top:5mm;border-radius:1mm;-webkit-print-color-adjust:exact;print-color-adjust:exact"></div><div class="row" style="margin-top:5mm"><div class="box"><div class="muted" style="font-size:8.5pt">ΠΕΛΑΤΗΣ</div><b>${esc(c.company||c.name||'—')}</b><br>${c.company&&c.name?esc(c.name)+'<br>':''}${esc(c.address||'')} ${esc(c.city||'')}<br>${c.vat?'ΑΦΜ '+esc(c.vat):''} ${c.doy?' · ΔΟΥ '+esc(c.doy):''}<br>${esc(c.phone||'')} ${c.email?' · '+esc(c.email):''}</div>
-    <div class="box"><div class="muted" style="font-size:8.5pt">ΠΕΡΙΟΔΟΣ ΕΝΟΙΚΙΑΣΗΣ</div><b>${fmtD(o.start)} ${esc(o.startTime||'')} → ${fmtD(o.end)} ${esc(o.endTime||'')}</b><br>${tt.days} ${tt.days===1?'ημέρα':'ημέρες'}<br>${o.name?'Εκδήλωση: '+esc(o.name)+'<br>':''}${o.venue?'Χώρος: '+esc(o.venue):''}</div></div>`;
+  const wd=d0=>{ const x=new Date(d0+'T00:00:00'); return ['Κυρ','Δευ','Τρί','Τετ','Πέμ','Παρ','Σάβ'][x.getDay()]+' '+fmtD(d0); };
+  const valid=kind==='quote'?addDays(today(), +(s.quoteValidity||15)):'';
+  const head=`<div class="dh"><div class="dh-l">${LOGO?`<img src="${LOGO}" alt="" class="dlogo">`:`<div style="font-weight:800;font-size:20pt">${esc(s.name||'')}</div>`}
+      <div class="dco"><b>${esc(s.name||'')}</b><br>${esc([s.address,s.city].filter(Boolean).join(', '))}<br>${esc([s.phone?'Τηλ. '+s.phone:'',s.email].filter(Boolean).join(' · '))}<br>${esc([s.vat?'ΑΦΜ '+s.vat:'',s.doy?'ΔΟΥ '+s.doy:''].filter(Boolean).join(' · '))}</div></div>
+    <div class="dh-r"><div class="dtype">${titles[kind]}</div><div class="dno">${esc(no||o.number||'')}</div>
+      <table class="dmeta"><tr><td>Ημερομηνία</td><td>${fmtD(today())}</td></tr><tr><td>Παραγγελία</td><td>${esc(o.number)}</td></tr>${valid?`<tr><td>Ισχύει έως</td><td>${fmtD(valid)}</td></tr>`:''}</table></div></div>
+    <div class="dbar"></div>
+    <div class="dinfo"><div class="dcard"><div class="dlab">Προς</div><div class="dbig">${esc(c.company||c.name||'—')}</div><div class="dsm">${[c.company&&c.name?esc(c.name):'', esc([c.address,c.city].filter(Boolean).join(', ')), esc([c.vat?'ΑΦΜ '+c.vat:'',c.doy?'ΔΟΥ '+c.doy:''].filter(Boolean).join(' · ')), esc([c.phone,c.email].filter(Boolean).join(' · '))].filter(Boolean).join('<br>')}</div></div>
+      <div class="dcard"><div class="dlab">Εκδήλωση</div><div class="dbig">${esc(o.name||'—')}</div><div class="dsm">${o.venue?'📍 '+esc(o.venue)+'<br>':''}<b>${wd(o.start)} ${esc(o.startTime||'')}</b> → <b>${wd(o.end)} ${esc(o.endTime||'')}</b><br>${tt.days} ${tt.days===1?'ημέρα':'ημέρες'} ενοικίασης</div></div></div>`;
   let body='';
   if(kind==='delivery'){
     const need=expandLines(o.lines);
@@ -562,18 +601,28 @@ function printOrderDoc(o, kind){
       ${o.notes?`<p><b>Σημειώσεις:</b> ${esc(o.notes)}</p>`:''}
       <div class="sig"><div>Παρέδωσε</div><div>Παρέλαβε (${esc(c.name||c.company||'πελάτης')})</div><div>Επιστροφή — έλεγχος</div></div>`;
   } else {
-    const lines=o.lines.map(l=>{ const p=D.products[l.pid]; return `<tr><td>${esc(p?p.name:l.name)}${l.note?`<br><small class="muted">${esc(l.note)}</small>`:''}${p&&p.kind==='bundle'?`<br><small class="muted">${(p.components||[]).map(c=>esc(prodName(c.pid))+' ×'+num(c.qty)).join(', ')}</small>`:''}</td><td class="r">${num(l.qty)}</td><td class="r">${money(l.price)}${l.priceType==='flat'?'':'/ημ.'}${hasExtra(l)&&tt.days>1?`<br><small class="muted">επόμ. ${money(l.extraPrice)}/ημ.</small>`:''}</td><td class="r">${l.priceType==='flat'?'—':tt.days}</td><td class="r">${num(l.discount)?num(l.discount)+'%':''}</td><td class="r">${money(lineTotal(l,tt.days))}</td></tr>`; }).join('');
-    const crewRows=(o.crew||[]).filter(a=>a.bill!==false&&crewCharge(a)>0).map(a=>{ const c=D.crew[a.cid]||{}; const b=c.payType||'day'; const qn=crewQty(b,a); const manual=a.charge!==undefined&&a.charge!==''&&a.charge!==null;
-      return `<tr><td>Τεχνικό προσωπικό — ${esc(a.role||c.role||'')}<br><small class="muted">${fmtD(a.start)}${a.end&&a.end!==a.start?' → '+fmtD(a.end):''} · ${esc(a.from||'')}–${esc(a.to||'')}</small></td><td class="r">1</td><td class="r">${manual||b==='flat'?money(crewCharge(a)):money(num(c.rate))+(b==='hour'?'/ώρα':'')}</td><td class="r">${b==='flat'||manual?'—':(b==='hour'?qn+' ώρ.':qn)}</td><td class="r">—</td><td class="r">${money(crewCharge(a))}</td></tr>`; }).join('');
-    body=`<table><thead><tr><th>Περιγραφή</th><th class="r">Ποσ.</th><th class="r">Τιμή</th><th class="r">Ημέρες</th><th class="r">Έκπτ.</th><th class="r">Αξία</th></tr></thead><tbody>${lines}${crewRows}</tbody></table>
-    <div class="tot"><div><span>Υποσύνολο</span><span>${money(tt.sub)}</span></div>${tt.disc?`<div><span>Έκπτωση ${num(o.discount)}%</span><span>−${money(tt.disc)}</span></div>`:''}<div><span>Καθαρή αξία</span><span>${money(tt.net)}</span></div><div><span>ΦΠΑ ${tt.vr}%</span><span>${money(tt.vat)}</span></div><div class="g"><span>Σύνολο</span><span>${money(tt.total)}</span></div>${tt.deposit?`<div><span>Εγγύηση</span><span>${money(tt.deposit)}</span></div>`:''}</div>
-    ${o.notes?`<p><b>Σημειώσεις:</b> ${esc(o.notes)}</p>`:''}
-    ${kind==='quote'?`<p class="muted">Η προσφορά ισχύει για ${esc(s.quoteValidity||15)} ημέρες. Η διαθεσιμότητα του εξοπλισμού επιβεβαιώνεται με την κράτηση.</p>`:''}
-    ${s.bank?`<p><b>Τραπεζικοί λογαριασμοί:</b><br>${esc(s.bank).replace(/\n/g,'<br>')}</p>`:''}
+    const hasDisc=o.lines.some(l=>num(l.discount)); const hasImg=o.lines.some(l=>imgSrc(D.products[l.pid]));
+    let n=0;
+    const lines=o.lines.map(l=>{ const p=D.products[l.pid]; n++; const img=imgSrc(p);
+      const sub=[]; if(l.priceType!=='flat'){ sub.push(hasExtra(l)&&tt.days>1?`1η ημέρα ${money(l.price)} · κάθε επόμενη ${money(l.extraPrice)}`:`${money(l.price)} / ημέρα`); } else sub.push('Κατ\' αποκοπή');
+      if(p&&p.kind==='bundle') sub.push((p.components||[]).map(c=>esc(prodName(c.pid))+' ×'+num(c.qty)).join(', '));
+      if(l.note) sub.push('<i>'+esc(l.note)+'</i>');
+      return `<tr><td class="dn">${n}</td>${hasImg?`<td class="dimg">${img?`<img src="${esc(img)}" alt="">`:''}</td>`:''}<td><div class="dit">${esc(p?p.name:l.name)}</div><div class="dsub">${sub.join(' · ')}</div></td>
+        <td class="r">${num(l.qty)}</td><td class="r">${l.priceType==='flat'?'—':tt.days}</td><td class="r">${money(lineUnitPeriod(l,tt.days))}</td>${hasDisc?`<td class="r">${num(l.discount)?num(l.discount)+'%':''}</td>`:''}<td class="r b">${money(lineTotal(l,tt.days))}</td></tr>`; }).join('');
+    const crewList=(o.crew||[]).filter(a=>a.bill!==false&&crewCharge(a)>0);
+    const crewRows=crewList.length?`<tr class="dsec"><td colspan="${5+(hasImg?1:0)+(hasDisc?1:0)+1}">Τεχνικό προσωπικό</td></tr>`+crewList.map(a=>{ const c=D.crew[a.cid]||{}; const b=c.payType||'day'; const qn=crewQty(b,a); n++;
+      return `<tr><td class="dn">${n}</td>${hasImg?'<td></td>':''}<td><div class="dit">${esc(a.role||c.role||'Τεχνικός')}</div><div class="dsub">${wd(a.start)}${a.end&&a.end!==a.start?' → '+wd(a.end):''} · ${esc(a.from||'')}–${esc(a.to||'')}</div></td><td class="r">1</td><td class="r">${b==='flat'?'—':(b==='hour'?qn+' ώρ.':qn)}</td><td class="r">${money(crewCharge(a))}</td>${hasDisc?'<td></td>':''}<td class="r b">${money(crewCharge(a))}</td></tr>`; }).join(''):'';
+    body=`<table class="ditems"><thead><tr><th class="dn">#</th>${hasImg?'<th></th>':''}<th>Περιγραφή</th><th class="r">Ποσ.</th><th class="r">Ημέρες</th><th class="r">Τιμή μον.</th>${hasDisc?'<th class="r">Έκπτ.</th>':''}<th class="r">Αξία</th></tr></thead><tbody>${lines}${crewRows}</tbody></table>
+    <div class="dtotw"><div class="dtot"><div><span>Υποσύνολο</span><span>${money(tt.sub)}</span></div>${tt.disc?`<div><span>Έκπτωση ${num(o.discount)}%</span><span>−${money(tt.disc)}</span></div>`:''}<div><span>Καθαρή αξία</span><span>${money(tt.net)}</span></div><div><span>ΦΠΑ ${tt.vr}%</span><span>${money(tt.vat)}</span></div><div class="dgrand"><span>Σύνολο</span><span>${money(tt.total)}</span></div>${tt.deposit?`<div class="ddep"><span>Εγγύηση</span><span>${money(tt.deposit)}</span></div>`:''}</div></div>
+    <div class="dnotes">${o.notes?`<div><div class="dlab">Σημειώσεις</div>${esc(o.notes).replace(/\n/g,'<br>')}</div>`:''}
+      ${kind==='quote'?`<div><div class="dlab">Όροι προσφοράς</div>Η προσφορά ισχύει έως ${fmtD(valid)}. Η διαθεσιμότητα του εξοπλισμού επιβεβαιώνεται με την κράτηση. Οι τιμές δεν περιλαμβάνουν ΦΠΑ, εκτός από το τελικό σύνολο.</div>`:''}
+      ${s.bank?`<div><div class="dlab">Τραπεζικοί λογαριασμοί</div>${esc(s.bank).replace(/\n/g,'<br>')}</div>`:''}</div>
+    ${kind==='quote'?`<div class="daccept"><div class="dlab">Αποδοχή προσφοράς</div><div class="dsig"><div>Ονοματεπώνυμο</div><div>Υπογραφή / σφραγίδα</div><div>Ημερομηνία</div></div></div>`:''}
     ${kind==='invoice'?`<p class="muted" style="font-size:8.5pt">Το παρόν είναι προτιμολόγιο και δεν αποτελεί φορολογικό παραστατικό.</p>`:''}
     ${kind==='contract'?`<h3 style="margin-top:8mm">Όροι ενοικίασης</h3><div style="font-size:9pt;white-space:pre-wrap">${esc(s.terms||'1. Ο μισθωτής ευθύνεται για τον εξοπλισμό από την παραλαβή έως την επιστροφή του.\n2. Βλάβες, απώλειες ή κλοπές χρεώνονται με βάση την αξία αντικατάστασης.\n3. Καθυστέρηση επιστροφής χρεώνεται με την ημερήσια τιμή ανά ημέρα καθυστέρησης.\n4. Η εγγύηση επιστρέφεται μετά τον έλεγχο του εξοπλισμού.')}</div><div class="sig"><div>Ο εκμισθωτής</div><div>Ο μισθωτής</div></div>`:''}`;
   }
-  printHTML(titles[kind]+' '+(no||''), head+body+(s.footer?`<p class="muted" style="margin-top:10mm;font-size:8.5pt;text-align:center">${esc(s.footer)}</p>`:''));
+  const foot=`<div class="dfoot">${esc([s.name,s.phone,s.email,s.website].filter(Boolean).join('  ·  '))}${s.footer?'<br>'+esc(s.footer):''}</div>`;
+  printHTML(titles[kind]+' '+(no||''), head+body+foot, DOC_CSS);
 }
 
 /* ===================== ΛΕΙΤΟΥΡΓΙΑ ΑΠΟΘΗΚΗΣ (κινητό) ===================== */
