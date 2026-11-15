@@ -454,3 +454,9 @@ tr.sel td{background:#fffbea}
 .cchip.wk b{display:block;font-size:11px}.cchip.wk span{display:block;font-weight:500;font-size:10.5px;overflow:hidden;text-overflow:ellipsis}
 .crewcal td{min-width:92px}
 #newver{position:fixed;top:calc(10px + env(safe-area-inset-top));left:50%;transform:translateX(-50%);z-index:300;background:var(--dark);color:#fff;border-radius:12px;padding:8px 10px 8px 16px;display:flex;align-items:center;gap:12px;box-shadow:0 10px 30px rgba(0,0,0,.25);font-size:14px;white-space:nowrap}
+
+.cat-hint{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:6px;min-height:0}
+.cat-hint:empty{display:none}
+.cat-auto{font-size:11.5px;font-weight:700;color:var(--brand-ink);background:var(--pri-soft);border-radius:6px;padding:2px 7px}
+.chip-btn{border:1px solid var(--line);background:#fff;border-radius:99px;padding:3px 10px;font-size:12px;cursor:pointer;font-weight:500}
+.chip-btn:hover{border-color:var(--brand-d);background:var(--pri-soft)}

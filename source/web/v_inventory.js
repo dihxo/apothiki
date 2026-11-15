@@ -156,7 +156,7 @@ async function findPhotos(force){
   if(q.length<3) return force?toast('Γράψε πρώτα το όνομα του προϊόντος.', true):null;
   if(!force&&q===p._suggQ) return;
   p._suggQ=q; p._suggBusy=true; p._sugg=null; p._suggPage=0; drawSugg();
-  try{ const r=await api('/api/imgsearch?q='+encodeURIComponent(q)); if(M&&M.p===p&&p._suggQ===q){ p._sugg=r.results||[]; } }
+  try{ const r=await api('/api/imgsearch?q='+encodeURIComponent(q)); if(M&&M.p===p&&p._suggQ===q){ p._sugg=r.results||[]; if(!p._imgTitle&&p._sugg.length){ p._imgTitle=p._sugg.slice(0,3).map(x=>x.title||'').join(' '); autoCategorize(false); } } }
   catch(e){ if(M&&M.p===p) p._sugg=[]; }
   if(M&&M.p===p&&p._suggQ===q){ p._suggBusy=false; drawSugg(); }
 }
@@ -173,7 +173,7 @@ ACT['pm-sugg-pick']=async el=>{
   }
   p._suggPick=null;
   if(!blob){ drawSugg(); return toast('Αυτή η φωτογραφία δεν κατέβηκε — διάλεξε άλλη.', true); }
-  await setProductImage(blob, 'contain');
+  p._imgTitle=h.title||''; await setProductImage(blob, 'contain'); autoCategorize(false);
 };
 
 function productModal(id, kind){
@@ -198,7 +198,7 @@ function drawProductModal(){
     </div>
     ${SERVER?`<div id="imgSugg">${suggHTML()}</div>`:''}
     <div class="f2"><label class="f">Όνομα *<input type="text" data-pm="name" value="${esc(p.name)}" autofocus placeholder="${isB?'π.χ. Σετ ήχου για 100 άτομα':'π.χ. Shure SM58'}"></label><label class="f">Κωδικός (QR) *<input type="text" data-pm="sku" value="${esc(p.sku)}" class="mono" placeholder="Βγαίνει από το όνομα"></label></div>
-    <label class="f">Κατηγορία<select data-pm="cat">${catOptions(p.cat)}</select></label>
+    <label class="f">Κατηγορία<select data-pm="cat">${catOptions(p.cat)}</select><div id="catHint" class="cat-hint">${catHintHTML()}</div></label>
     ${!isB?`<div><div class="small muted b" style="margin-bottom:6px">Παρακολούθηση αποθέματος</div><div class="seg"><button class="${p.tracking!=='serial'?'on':''}" data-act="pm-set" data-k="tracking" data-v="bulk">Ποσότητα (π.χ. καλώδια)</button><button class="${p.tracking==='serial'?'on':''}" data-act="pm-set" data-k="tracking" data-v="serial">Σειριακοί αριθμοί (κάθε τεμάχιο με QR)</button></div></div>`:''}
     <div class="f3">
       ${!isB&&p.tracking!=='serial'?`<label class="f">Ποσότητα *<input type="number" min="0" step="1" data-pm="qty" value="${esc(p.qty)}"></label>`:''}
