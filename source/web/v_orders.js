@@ -114,10 +114,13 @@ async function createOrder(base){
   if(!can('staff')) return toast('Δεν έχεις δικαίωμα.', true);
   const n=await nextNumber('order'); const pre=settings().orderPrefix||'ORD-';
   const t=today(); const id=uid('or');
-  const doc=Object.assign({number:pre+String(n).padStart(4,'0'), name:'', customerId:'', venue:'', start:t, end:addDays(t,1), startTime:'10:00', endTime:'10:00', status:'concept', lines:[], discount:0, deposit:0, notes:'', internalNotes:'', picked:{units:[],bulk:{}}, returned:{units:[],bulk:{}}}, base||{});
+  const doc=Object.assign({number:pre+String(n).padStart(4,'0'), name:'', customerId:'', venue:'', start:t, end:addDays(t,1), startTime:'10:00', endTime:'10:00', status:'concept', lines:[], discount:0, deposit:0, notes:'', internalNotes:'', picked:{units:[],bulk:{}}, returned:{units:[],bulk:{}}, wip:true, wipBy:(UI.me&&UI.me.id)||''}, base||{});
   if(await put('orders', id, doc, 'Δημιουργήθηκε η παραγγελία '+doc.number, true)) location.hash='order-'+id;
 }
-ACT['new-order']=()=>{ if(!can('staff')) return toast('Δεν έχεις δικαίωμα.', true); newOrderModal(); };
+function myWipOrder(){ const me=UI.me&&UI.me.id; return sortBy(Object.values(D.orders).filter(o=>o.wip&&o.status==='concept'&&(!o.wipBy||!me||o.wipBy===me)), o=>o.updatedAt||o.createdAt||0).pop(); }
+ACT['new-order']=()=>{ if(!can('staff')) return toast('Δεν έχεις δικαίωμα.', true);
+  const w=myWipOrder(); if(w){ if(location.hash!=='#order-'+w.id) location.hash='order-'+w.id; toast(`Συνέχεια της ${w.number} — ολοκλήρωσέ την με «Κράτηση» ή «Αποθήκευση στα πρόχειρα»`); return; }
+  newOrderModal(); };
 /* ---------- νέα παραγγελία: πρώτα αναζήτηση πελάτη ---------- */
 let NO={i:0, items:[]};
 function newOrderModal(){
@@ -212,10 +215,12 @@ VIEWS.order = id => {
   const showFlow = ['reserved','started','stopped'].includes(d.status) && d.lines.some(l=>l.pid);
   const ps=payStatus(d);
   return `
-  <div class="ohead"><h1><a href="#orders" style="color:var(--muted);text-decoration:none;font-weight:600">Παραγγελίες</a> <span class="faint">›</span> #${esc(String(d.number||'').replace(/^\D+0*/,''))} ${pill(d.status)} ${late?'<span class="pill red solid">Καθυστέρηση</span>':''}</h1>
+  <div class="ohead"><h1><a href="#orders" style="color:var(--muted);text-decoration:none;font-weight:600">Παραγγελίες</a> <span class="faint">›</span> #${esc(String(d.number||'').replace(/^\D+0*/,''))} ${d.wip&&d.status==='concept'?'<span class="pill wip">Σε εξέλιξη</span>':pill(d.status)} ${late?'<span class="pill red solid">Καθυστέρηση</span>':''}</h1>
     <span id="saveState" class="small"></span><div class="grow"></div>
+    ${d.wip&&d.status==='concept'&&can('staff')?'<button class="btn" data-act="o-save-draft">Αποθήκευση στα πρόχειρα</button>':''}
     ${primary}
     ${can('staff')?`<div class="dd"><button class="btn" data-act="dd">⋯ Ενέργειες</button><div class="dd-m">
+      ${d.wip&&d.status==='concept'?'<button data-act="o-save-draft">Αποθήκευση στα πρόχειρα</button>':''}
       ${['concept','reserved'].includes(d.status)?'<button data-act="o-status" data-v="option">Option (προσωρινή δέσμευση)</button>':''}
       ${d.status==='option'?'<button data-act="o-status" data-v="concept">Επαναφορά σε πρόχειρο</button>':''}
       ${d.status==='reserved'?'<button data-act="o-status" data-v="concept">Αποδέσμευση (πρόχειρο)</button>':''}
@@ -224,6 +229,7 @@ VIEWS.order = id => {
       <button data-act="o-dup">Αντιγραφή παραγγελίας</button>
       ${!['cancelled','stopped'].includes(d.status)?'<button data-act="o-status" data-v="cancelled" style="color:var(--red)">Ακύρωση παραγγελίας</button>':''}
       <button data-act="o-del" style="color:var(--red)">Διαγραφή</button></div></div>`:''}</div>
+  ${d.wip&&d.status==='concept'&&can('staff')?`<div class="banner wipban"><div class="grow"><b>Παραγγελία σε εξέλιξη.</b> Το «Νέα παραγγελία» θα σε φέρνει εδώ μέχρι να την ολοκληρώσεις με <b>Κράτηση</b> ή <b>Αποθήκευση στα πρόχειρα</b>.</div></div>`:''}
   ${sh.length&&HOLD.includes(d.status)?`<div class="banner red">⚠ Δεν επαρκεί ο εξοπλισμός: ${sh.map(s=>`${esc(prodName(s.pid))} (λείπουν ${s.missing})`).join(', ')}</div>`:''}
   ${sh.length&&d.status==='concept'?`<div class="banner orange">Αν γίνει κράτηση θα υπάρξουν ελλείψεις: ${sh.map(s=>`${esc(prodName(s.pid))} −${s.missing}`).join(', ')}</div>`:''}
   <div class="ogrid">
@@ -418,11 +424,12 @@ document.addEventListener('keydown', e=>{ if(e.target.id!=='custQ') return; cons
 ACT['o-status']=async el=>{
   const d=UI.draft, v=el.dataset.v;
   if(v==='reserved'){ const sh=shortages(d); if(!d.lines.length) return toast('Πρόσθεσε πρώτα προϊόντα.', true);
-    if(sh.length){ confirmBox('Υπάρχουν ελλείψεις', `Δεν επαρκούν: ${sh.map(s=>`${prodName(s.pid)} (−${s.missing})`).join(', ')}. Να γίνει κράτηση παρ' όλα αυτά;`, 'Κράτηση', async()=>{ d.status='reserved'; await saveOrder('Κράτηση '+d.number); render(); }, false); return; } }
-  if(v==='cancelled'){ confirmBox('Ακύρωση παραγγελίας;', 'Ο εξοπλισμός θα αποδεσμευτεί.', 'Ακύρωση παραγγελίας', async()=>{ d.status='cancelled'; await saveOrder('Ακύρωση '+d.number); render(); }); return; }
+    if(sh.length){ confirmBox('Υπάρχουν ελλείψεις', `Δεν επαρκούν: ${sh.map(s=>`${prodName(s.pid)} (−${s.missing})`).join(', ')}. Να γίνει κράτηση παρ' όλα αυτά;`, 'Κράτηση', async()=>{ d.status='reserved'; d.wip=false; await saveOrder('Κράτηση '+d.number); render(); }, false); return; } }
+  if(v==='cancelled'){ confirmBox('Ακύρωση παραγγελίας;', 'Ο εξοπλισμός θα αποδεσμευτεί.', 'Ακύρωση παραγγελίας', async()=>{ d.status='cancelled'; d.wip=false; await saveOrder('Ακύρωση '+d.number); render(); }); return; }
   const labels={reserved:'Κράτηση',concept:'Πρόχειρο',option:'Option',started:'Σε εξέλιξη'};
-  d.status=v; await saveOrder((labels[v]||'Ενημέρωση')+' '+d.number); render();
+  d.status=v; if(v!=='concept') d.wip=false; await saveOrder((labels[v]||'Ενημέρωση')+' '+d.number); render();
 };
+ACT['o-save-draft']=async()=>{ const d=UI.draft; if(!d) return; d.wip=false; d.status='concept'; await saveOrder('Αποθηκεύτηκε στα πρόχειρα: '+d.number); toast('Αποθηκεύτηκε στα πρόχειρα ✓ — το «Νέα παραγγελία» ξεκινά πλέον καινούργια'); location.hash='orders'; };
 ACT['o-pickup']=async()=>{
   const d=UI.draft; if(d.status!=='reserved') return;
   const need=expandLines(d.lines); let missing=0;

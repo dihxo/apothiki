@@ -493,3 +493,5 @@ tr.sel td{background:#fffbea}
   #side .side-bottom,#side .side-foot{flex:none}
   #side .side-foot{padding-bottom:calc(14px + env(safe-area-inset-bottom))}
 }
+.banner.wipban{background:var(--pri-soft);border:1px solid var(--brand);color:var(--dark)}
+.pill.wip{background:var(--brand);color:var(--dark)}
