@@ -549,7 +549,7 @@ const DOC_CSS=`@page{size:A4;margin:12mm 12mm 14mm} body{padding:0;font-size:9.5
   .dlogo{height:17mm;width:auto;display:block;margin:0 0 3mm -1mm}
   .dco{font-size:8.3pt;color:#666;line-height:1.45}.dco b{color:#1d1d1f;font-size:9pt}
   .dh-r{text-align:right;min-width:62mm}
-  .dtype{font-size:8.5pt;letter-spacing:.28em;font-weight:700;color:#8a6a00}
+  .dtype{font-size:15pt;letter-spacing:.18em;font-weight:800;color:#1d1d1f;margin:1mm 0 3mm}
   .dno{font-size:22pt;font-weight:800;letter-spacing:-.02em;margin:1mm 0 2mm}
   table.dmeta{width:auto;margin:0 0 0 auto;border-collapse:collapse}.dmeta td{border:none;padding:.6mm 0 .6mm 5mm;font-size:8.5pt}.dmeta td:first-child{color:#888}.dmeta td:last-child{font-weight:600;text-align:right}
   .dbar{height:1.2mm;background:linear-gradient(90deg,#f2c428,#f7dc7a);border-radius:1mm;margin:5mm 0}
@@ -586,8 +586,8 @@ function printOrderDoc(o, kind){
   const valid=kind==='quote'?addDays(today(), +(s.quoteValidity||15)):'';
   const head=`<div class="dh"><div class="dh-l">${LOGO?`<img src="${LOGO}" alt="" class="dlogo">`:`<div style="font-weight:800;font-size:20pt">${esc(s.name||'')}</div>`}
       <div class="dco"><b>${esc(s.name||'')}</b><br>${esc([s.address,s.city].filter(Boolean).join(', '))}<br>${esc([s.phone?'Τηλ. '+s.phone:'',s.email].filter(Boolean).join(' · '))}<br>${esc([s.vat?'ΑΦΜ '+s.vat:'',s.doy?'ΔΟΥ '+s.doy:''].filter(Boolean).join(' · '))}</div></div>
-    <div class="dh-r"><div class="dtype">${titles[kind]}</div><div class="dno">${esc(no||o.number||'')}</div>
-      <table class="dmeta"><tr><td>Ημερομηνία</td><td>${fmtD(today())}</td></tr><tr><td>Παραγγελία</td><td>${esc(o.number)}</td></tr>${valid?`<tr><td>Ισχύει έως</td><td>${fmtD(valid)}</td></tr>`:''}</table></div></div>
+    <div class="dh-r"><div class="dtype">${titles[kind]}</div>
+      <table class="dmeta">${kind==='invoice'&&no?`<tr><td>Αριθμός</td><td>${esc(no)}</td></tr>`:''}<tr><td>Ημερομηνία</td><td>${fmtD(today())}</td></tr><tr><td>Παραγγελία</td><td>${esc(o.number)}</td></tr>${valid?`<tr><td>Ισχύει έως</td><td>${fmtD(valid)}</td></tr>`:''}</table></div></div>
     <div class="dbar"></div>
     <div class="dinfo"><div class="dcard"><div class="dlab">Προς</div><div class="dbig">${esc(c.company||c.name||'—')}</div><div class="dsm">${[c.company&&c.name?esc(c.name):'', esc([c.address,c.city].filter(Boolean).join(', ')), esc([c.vat?'ΑΦΜ '+c.vat:'',c.doy?'ΔΟΥ '+c.doy:''].filter(Boolean).join(' · ')), esc([c.phone,c.email].filter(Boolean).join(' · '))].filter(Boolean).join('<br>')}</div></div>
       <div class="dcard"><div class="dlab">Εκδήλωση</div><div class="dbig">${esc(o.name||'—')}</div><div class="dsm">${o.venue?'📍 '+esc(o.venue)+'<br>':''}<b>${wd(o.start)} ${esc(o.startTime||'')}</b> → <b>${wd(o.end)} ${esc(o.endTime||'')}</b><br>${tt.days} ${tt.days===1?'ημέρα':'ημέρες'} ενοικίασης</div></div></div>`;
