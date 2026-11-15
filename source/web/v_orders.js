@@ -192,7 +192,7 @@ VIEWS.order = id => {
   }
   const lineRows=d.lines.map((l,i)=>{
     const p=l.pid?D.products[l.pid]:null;
-    if(l.pid && !p) return `<tr><td colspan="7" class="muted">Το προϊόν διαγράφηκε ${ro?'':`<button class="icon" data-act="o-line-del" data-i="${i}">✕</button>`}</td></tr>`;
+    if(l.pid && !p) return `<tr data-li="${i}"><td colspan="7" class="muted">Το προϊόν διαγράφηκε ${ro?'':`<button class="icon" data-act="o-line-del" data-i="${i}">✕</button>`}</td></tr>`;
     let avail='<span class="faint">—</span>', problem='', sub='';
     if(p){
       const fr=freeUnits(l.pid,d.start,d.end,d.id); const cls=avCls(fr.free, num(l.qty));
@@ -203,7 +203,7 @@ VIEWS.order = id => {
     }
     const name = p ? `<div class="line-name pcell" style="gap:8px">${prodImg(p,34)}<span><a class="lk" href="#product-${p.id}">${esc(p.name)}</a> ${p.kind==='bundle'?'<span class="tag">Bundle</span>':''}${p.tracking==='serial'?'<span class="tag">S/N</span>':''}</span></div>${ro?(l.note?`<div class="xs muted">${esc(l.note)}</div>`:''):`<input type="text" value="${esc(l.note||'')}" data-ol="${i}" data-f="note" placeholder="Σημείωση γραμμής" class="xs" style="border:none;padding:2px 0;width:100%;background:transparent;color:var(--muted)">`}`
       : `<input type="text" value="${esc(l.name)}" data-ol="${i}" data-f="name" placeholder="Περιγραφή (π.χ. Μεταφορά, Τεχνικός)" ${ro?'disabled':''} style="width:100%">`;
-    return `<tr><td>${name}${sub}${problem}</td>
+    return `<tr data-li="${i}"><td><div class="lrow">${!ro&&d.lines.length>1?'<span class="drag" title="Σύρε για αλλαγή σειράς" aria-label="Μετακίνηση">⋮⋮</span>':''}<div class="grow" style="min-width:0">${name}${sub}${problem}</div></div></td>
       <td>${avail}</td>
       <td>${ro?`<b>${num(l.qty)}</b>`:`<span class="qbox"><button data-act="o-qty" data-i="${i}" data-d="-1">−</button><input type="number" min="0" step="1" value="${esc(l.qty)}" data-ol="${i}" data-f="qty"><button data-act="o-qty" data-i="${i}" data-d="1">+</button></span>`}</td>
       <td style="white-space:nowrap"><select data-ol="${i}" data-f="priceType" ${ro?'disabled':''} style="padding:5px 4px;font-size:12px;max-width:96px"><option value="day" ${l.priceType!=='flat'?'selected':''}>/ημέρα ×${tt.days}</option><option value="flat" ${l.priceType==='flat'?'selected':''}>περιόδου</option></select> <input type="number" class="price" min="0" step="0.01" value="${esc(l.price)}" data-ol="${i}" data-f="price" ${ro?'disabled':''} title="${l.priceType==='flat'?'Τιμή για όλη την περίοδο':'Τιμή 1ης ημέρας'}">${l.priceType!=='flat'&&tt.days>1?`<div class="xs muted" style="margin-top:3px;text-align:right">επόμενες ${tt.days-1} ημ. × <input type="number" min="0" step="0.01" value="${esc(hasExtra(l)?l.extraPrice:'')}" placeholder="${esc(l.price)}" data-ol="${i}" data-f="extraPrice" ${ro?'disabled':''} style="width:70px;padding:2px 5px;font-size:12px;text-align:right" title="Τιμή για κάθε επόμενη ημέρα (κενό = ίδια με την 1η)"> €</div>`:''}</td>
@@ -376,6 +376,23 @@ ENTER['o-add-code']=v=>{ const f=findCode(v); let p=f&&f.product;
 ACT['o-cam-add']=()=>openCamera(code=>{ const f=findCode(code); if(f&&f.product){ addProductLine(f.product.id); toast('+1 '+f.product.name); } else toast('Άγνωστος κωδικός: '+code, true); }, 'Προσθήκη προϊόντων');
 ACT['o-custom']=()=>{ UI.draft.lines.push({id:uid('ln'), pid:'', name:'', qty:1, price:0, priceType:'flat', discount:0}); dirty(); };
 ACT['o-line-del']=el=>{ UI.draft.lines.splice(+el.dataset.i,1); dirty(); };
+/* ---------- αλλαγή σειράς γραμμών με σύρσιμο (ποντίκι & αφή) ---------- */
+(()=>{ let drag=null;
+  document.addEventListener('pointerdown', e=>{ const h=e.target.closest('.drag'); if(!h||!UI.draft) return; const tr=h.closest('tr[data-li]'); if(!tr) return;
+    e.preventDefault(); const tb=tr.parentElement; drag={tr, tb, y0:e.clientY, from:+tr.dataset.li, id:e.pointerId};
+    tr.classList.add('dragging'); document.body.classList.add('noselect'); try{ h.setPointerCapture(e.pointerId); }catch(_){}
+    if(navigator.vibrate) navigator.vibrate(15); });
+  document.addEventListener('pointermove', e=>{ if(!drag||e.pointerId!==drag.id) return; e.preventDefault();
+    const rows=[...drag.tb.querySelectorAll('tr[data-li]')].filter(r=>r!==drag.tr);
+    let before=null; for(const r of rows){ const b=r.getBoundingClientRect(); if(e.clientY<b.top+b.height/2){ before=r; break; } }
+    if(before) { if(drag.tr.nextElementSibling!==before) drag.tb.insertBefore(drag.tr, before); } else if(drag.tb.lastElementChild!==drag.tr) drag.tb.appendChild(drag.tr);
+    // αυτόματη κύλιση κοντά στις άκρες
+    if(e.clientY<90) window.scrollBy(0,-12); else if(e.clientY>innerHeight-140) window.scrollBy(0,12); }, {passive:false});
+  const end=e=>{ if(!drag||(e.pointerId!==undefined&&e.pointerId!==drag.id)) return; const d=UI.draft; drag.tr.classList.remove('dragging'); document.body.classList.remove('noselect');
+    const order=[...drag.tb.querySelectorAll('tr[data-li]')].map(r=>+r.dataset.li); drag=null;
+    if(!d||order.every((v,i)=>v===i)) return; d.lines=order.map(i=>d.lines[i]).filter(Boolean); dirty(); };
+  document.addEventListener('pointerup', end); document.addEventListener('pointercancel', end);
+})();
 ACT['o-new-cust']=()=>customerModal(null, id=>{ UI.draft.customerId=id; dirty(); });
 /* ---------- αναζήτηση πελάτη (combobox) ---------- */
 function normQ(s){ return String(s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/ς/g,'σ'); }

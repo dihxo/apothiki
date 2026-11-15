@@ -511,3 +511,10 @@ tr.sel td{background:#fffbea}
   .qbox input{width:40px;padding:8px 2px}
   .qbox button{width:36px;font-size:18px}
 }
+.lrow{display:flex;align-items:flex-start;gap:6px}
+.drag{cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none;color:var(--faint);font-size:16px;letter-spacing:-3px;padding:6px 6px 6px 0;line-height:1;flex:none;margin-top:4px}
+.drag:hover{color:var(--ink)}
+tr.dragging{background:var(--pri-soft)!important;box-shadow:0 6px 20px rgba(0,0,0,.15);position:relative;z-index:2}
+tr.dragging .drag{cursor:grabbing;color:var(--dark)}
+body.noselect{user-select:none;-webkit-user-select:none}
+@media(max-width:700px){.drag{font-size:18px;padding:8px 8px 8px 0}}
