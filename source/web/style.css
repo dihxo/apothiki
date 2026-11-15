@@ -487,3 +487,9 @@ tr.sel td{background:#fffbea}
 
 .nolist{display:grid;gap:2px;max-height:min(420px,55vh);overflow:auto;margin:0 -6px}
 .nolist .cpick-it{padding:10px}
+@media(max-width:900px){
+  #side{overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;height:100%;height:100dvh}
+  #side nav{flex:1 0 auto;overflow:visible}
+  #side .side-bottom,#side .side-foot{flex:none}
+  #side .side-foot{padding-bottom:calc(14px + env(safe-area-inset-bottom))}
+}
