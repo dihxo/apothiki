@@ -495,3 +495,11 @@ tr.sel td{background:#fffbea}
 }
 .banner.wipban{background:var(--pri-soft);border:1px solid var(--brand);color:var(--dark)}
 .pill.wip{background:var(--brand);color:var(--dark)}
+.pick-add .gres{min-width:min(460px,90vw)}
+@media(max-width:700px){
+  .addrow{flex-wrap:wrap}
+  .addrow .pick-add{flex:1 1 100%}
+  .addrow>.btn{flex:1;justify-content:center}
+  .pick-add .gres{min-width:0;max-height:52vh}
+  .gres a{padding:11px 12px}
+}

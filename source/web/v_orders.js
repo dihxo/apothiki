@@ -248,8 +248,8 @@ VIEWS.order = id => {
           </div></div>
       </div>
       <div class="card p0">
-        ${ro?'':`<div style="padding:12px 16px;border-bottom:1px solid var(--line)" class="row">
-          <div class="pick-add grow"><input type="search" id="oAdd" placeholder="🔍 Αναζήτηση για προσθήκη προϊόντων ή σάρωση κωδικού + Enter" data-enter="o-add-code" autocomplete="off" style="width:100%"><div class="gres" id="oAddRes" style="display:none"></div></div>
+        ${ro?'':`<div style="padding:12px 16px;border-bottom:1px solid var(--line)" class="row addrow">
+          <div class="pick-add grow"><input type="search" id="oAdd" placeholder="🔍 ${isM()?'Αναζήτηση προϊόντος ή κωδικού…':'Αναζήτηση για προσθήκη προϊόντων ή σάρωση κωδικού + Enter'}" data-enter="o-add-code" autocomplete="off" style="width:100%"><div class="gres" id="oAddRes" style="display:none"></div></div>
           <button class="btn" data-act="o-cam-add" title="Σάρωση με κάμερα">📷</button><button class="btn" data-act="o-custom">+ Ελεύθερη γραμμή</button></div>`}
         ${d.lines.length?`<div class="tw"><table><thead><tr><th class="ocol-name">Προϊόν</th><th>Διαθέσιμα</th><th>Ποσότητα</th><th>Χρέωση</th><th>Έκπτ.</th><th class="num">Σύνολο</th><th></th></tr></thead><tbody>${lineRows}</tbody></table></div>`
         :'<div class="empty" style="padding:30px">Δεν έχουν προστεθεί προϊόντα ακόμη.</div>'}
