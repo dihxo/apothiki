@@ -554,3 +554,5 @@ body.docopen{overflow:hidden}
 .mcatw{max-width:100%;overflow:hidden}
 .mlist{display:block}
 .mrow{min-width:0;max-width:100%}
+
+body.noprice .pr{display:none!important}

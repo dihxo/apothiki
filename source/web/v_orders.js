@@ -29,7 +29,7 @@ VIEWS.dashboard = () => {
     <div class="card stat click" data-act="go" data-href="#orders"><div class="n">${pickToday.length}</div><div class="l">Για παραλαβή σήμερα</div></div>
     <div class="card stat click" data-act="go" data-href="#orders"><div class="n">${retToday.length+late.length}</div><div class="l">Επιστροφές σήμερα${late.length?` <span class="pill red">${late.length} καθυστ.</span>`:''}</div></div>
     <div class="card stat"><div class="n">${orders.filter(o=>o.status==='started').length}</div><div class="l">Παραγγελίες σε εξέλιξη</div></div>
-    <div class="card stat click" data-act="go" data-href="#reports"><div class="n">${money(rev)}</div><div class="l">Έσοδα ${MONTHS[+m0.slice(5)-1]} (καθαρά)</div></div>
+    <div class="card stat click pr" data-act="go" data-href="#reports"><div class="n">${money(rev)}</div><div class="l">Έσοδα ${MONTHS[+m0.slice(5)-1]} (καθαρά)</div></div>
   </div>
   <div class="grid g2">
     <div class="card"><h2>Παραλαβές</h2>${pickToday.concat(pickSoon).length?pickToday.map(o=>oRow(o,'<b style="color:var(--orange)">σήμερα</b>')).join('')+pickSoon.map(o=>oRow(o,fmtD(o.start))).join(''):'<div class="muted">Καμία παραλαβή τις επόμενες 7 ημέρες.</div>'}</div>
@@ -81,7 +81,7 @@ VIEWS.orders = () => {
     </div>
     <div>
       <div class="tabs" style="margin-bottom:14px">${tabs.map(([k,l])=>`<button class="${UI.ordTab===k?'on':''}" data-act="tab" data-k="ordTab" data-v="${k}">${l}</button>`).join('')}</div>
-      <div class="metrics"><div class="card"><div class="l">Παραγγελίες</div><div class="n">${list.length}</div></div><div class="card"><div class="l">Τεμάχια</div><div class="n">${items.toLocaleString('el-GR')}</div></div><div class="card"><div class="l">Έσοδα</div><div class="n">${money(rev)}</div></div><div class="card"><div class="l">Οφειλές</div><div class="n">${money(due)}</div></div></div>
+      <div class="metrics"><div class="card"><div class="l">Παραγγελίες</div><div class="n">${list.length}</div></div><div class="card"><div class="l">Τεμάχια</div><div class="n">${items.toLocaleString('el-GR')}</div></div><div class="card pr"><div class="l">Έσοδα</div><div class="n">${money(rev)}</div></div><div class="card pr"><div class="l">Οφειλές</div><div class="n">${money(due)}</div></div></div>
       <div class="card p0"><div class="card-h"><input type="search" class="grow" placeholder="Αναζήτηση αριθμού, πελάτη, χώρου…" data-bind="ordQ" value="${esc(UI.ordQ)}" style="max-width:380px"><div class="row small muted">${list.length?`${(UI.ordPage-1)*per+1}–${Math.min(list.length,UI.ordPage*per)} από ${list.length}`:''}${pages>1?`<button class="btn sm" data-act="o-page" data-v="-1" ${UI.ordPage<=1?'disabled':''}>‹</button><button class="btn sm" data-act="o-page" data-v="1" ${UI.ordPage>=pages?'disabled':''}>›</button>`:''}</div></div>
       ${list.length&&isM()?`<div class="mlist">${mrows}</div>`:list.length?`${UI.ordSel.size?`<div class="bulkbar"><b>${UI.ordSel.size} επιλεγμένες</b><button class="btn sm" data-act="o-bulk-cancel">Ακύρωση</button>${can('staff')?`<button class="btn sm dangerous" data-act="o-bulk-del">Διαγραφή</button>`:''}<button class="btn sm ghost" data-act="o-sel-clear">Καθαρισμός επιλογής</button></div>`:''}<div class="tw"><table><thead><tr>${can('staff')?`<th><input type="checkbox" data-act="o-sel-all" ${pageList.length&&pageList.every(o=>UI.ordSel.has(o.id))?'checked':''}></th>`:''}<th>#</th><th>Πελάτης</th><th>Κατάσταση</th><th>Από</th><th></th><th>Έως</th><th class="num">Τιμή</th><th>Πληρωμή</th></tr></thead><tbody>${rows}</tbody></table></div>`:`<div class="empty"><b>Δεν βρέθηκαν παραγγελίες</b></div>`}</div>
     </div>
@@ -206,9 +206,9 @@ VIEWS.order = id => {
     return `<tr data-li="${i}"><td><div class="lrow">${!ro&&d.lines.length>1?'<span class="drag" title="Σύρε για αλλαγή σειράς" aria-label="Μετακίνηση">⋮⋮</span>':''}<div class="grow" style="min-width:0">${name}${sub}${problem}</div></div></td>
       <td>${avail}</td>
       <td>${ro?`<b>${num(l.qty)}</b>`:`<span class="qbox"><button data-act="o-qty" data-i="${i}" data-d="-1">−</button><input type="number" min="0" step="1" value="${esc(l.qty)}" data-ol="${i}" data-f="qty"><button data-act="o-qty" data-i="${i}" data-d="1">+</button></span>`}</td>
-      <td style="white-space:nowrap"><select data-ol="${i}" data-f="priceType" ${ro?'disabled':''} style="padding:5px 4px;font-size:12px;max-width:96px"><option value="day" ${l.priceType!=='flat'?'selected':''}>/ημέρα ×${tt.days}</option><option value="flat" ${l.priceType==='flat'?'selected':''}>περιόδου</option></select> <input type="number" class="price" min="0" step="0.01" value="${esc(l.price)}" data-ol="${i}" data-f="price" ${ro?'disabled':''} title="${l.priceType==='flat'?'Τιμή για όλη την περίοδο':'Τιμή 1ης ημέρας'}">${l.priceType!=='flat'&&tt.days>1?`<div class="xs muted" style="margin-top:3px;text-align:right">επόμενες ${tt.days-1} ημ. × <input type="number" min="0" step="0.01" value="${esc(hasExtra(l)?l.extraPrice:'')}" placeholder="${esc(l.price)}" data-ol="${i}" data-f="extraPrice" ${ro?'disabled':''} style="width:70px;padding:2px 5px;font-size:12px;text-align:right" title="Τιμή για κάθε επόμενη ημέρα (κενό = ίδια με την 1η)"> €</div>`:''}</td>
-      <td><input type="number" class="pct" min="0" max="100" step="1" value="${esc(l.discount||'')}" placeholder="0%" data-ol="${i}" data-f="discount" ${ro?'disabled':''} title="Έκπτωση γραμμής %"></td>
-      <td class="num b" style="white-space:nowrap">${money(lineTotal(l,tt.days))}</td>
+      <td class="pr" style="white-space:nowrap"><select data-ol="${i}" data-f="priceType" ${ro?'disabled':''} style="padding:5px 4px;font-size:12px;max-width:96px"><option value="day" ${l.priceType!=='flat'?'selected':''}>/ημέρα ×${tt.days}</option><option value="flat" ${l.priceType==='flat'?'selected':''}>περιόδου</option></select> <input type="number" class="price" min="0" step="0.01" value="${esc(l.price)}" data-ol="${i}" data-f="price" ${ro?'disabled':''} title="${l.priceType==='flat'?'Τιμή για όλη την περίοδο':'Τιμή 1ης ημέρας'}">${l.priceType!=='flat'&&tt.days>1?`<div class="xs muted" style="margin-top:3px;text-align:right">επόμενες ${tt.days-1} ημ. × <input type="number" min="0" step="0.01" value="${esc(hasExtra(l)?l.extraPrice:'')}" placeholder="${esc(l.price)}" data-ol="${i}" data-f="extraPrice" ${ro?'disabled':''} style="width:70px;padding:2px 5px;font-size:12px;text-align:right" title="Τιμή για κάθε επόμενη ημέρα (κενό = ίδια με την 1η)"> €</div>`:''}</td>
+      <td class="pr"><input type="number" class="pct" min="0" max="100" step="1" value="${esc(l.discount||'')}" placeholder="0%" data-ol="${i}" data-f="discount" ${ro?'disabled':''} title="Έκπτωση γραμμής %"></td>
+      <td class="num b pr" style="white-space:nowrap">${money(lineTotal(l,tt.days))}</td>
       <td class="num">${ro?'':`<button class="icon" data-act="o-line-del" data-i="${i}" title="Αφαίρεση">✕</button>`}</td></tr>`;
   }).join('');
   const custOpts=sortBy(Object.values(D.customers),c=>c.company||c.name||'').map(c=>`<option value="${c.id}" ${c.id===d.customerId?'selected':''}>${esc(c.company||c.name)}${c.company&&c.name?' — '+esc(c.name):''}</option>`).join('');
@@ -251,9 +251,9 @@ VIEWS.order = id => {
         ${ro?'':`<div style="padding:12px 16px;border-bottom:1px solid var(--line)" class="row addrow">
           <div class="pick-add grow"><input type="search" id="oAdd" placeholder="🔍 ${isM()?'Αναζήτηση προϊόντος ή κωδικού…':'Αναζήτηση για προσθήκη προϊόντων ή σάρωση κωδικού + Enter'}" data-enter="o-add-code" autocomplete="off" style="width:100%"><div class="gres" id="oAddRes" style="display:none"></div></div>
           <button class="btn" data-act="o-cam-add" title="Σάρωση με κάμερα">📷</button><button class="btn" data-act="o-custom">+ Ελεύθερη γραμμή</button></div>`}
-        ${d.lines.length?`<div class="tw"><table><thead><tr><th class="ocol-name">Προϊόν</th><th>Διαθέσιμα</th><th>Ποσότητα</th><th>Χρέωση</th><th>Έκπτ.</th><th class="num">Σύνολο</th><th></th></tr></thead><tbody>${lineRows}</tbody></table></div>`
+        ${d.lines.length?`<div class="tw"><table><thead><tr><th class="ocol-name">Προϊόν</th><th>Διαθέσιμα</th><th>Ποσότητα</th><th class="pr">Χρέωση</th><th class="pr">Έκπτ.</th><th class="num pr">Σύνολο</th><th></th></tr></thead><tbody>${lineRows}</tbody></table></div>`
         :'<div class="empty" style="padding:30px">Δεν έχουν προστεθεί προϊόντα ακόμη.</div>'}
-        <div class="sum" style="padding:12px 16px;border-top:1px solid var(--line);max-width:360px;margin-left:auto">
+        <div class="sum pr" style="padding:12px 16px;border-top:1px solid var(--line);max-width:360px;margin-left:auto">
           ${tt.crewCharge?`<div><span class="muted">Εξοπλισμός</span><span>${money(tt.equip)}</span></div><div><span class="muted">Συνεργείο</span><span>${money(tt.crewCharge)}</span></div>`:''}
           <div><span class="muted">Υποσύνολο</span><span>${money(tt.sub)}</span></div>
           <div><span class="muted">Έκπτωση <input type="number" class="pct" min="0" max="100" step="0.01" data-o="discount" value="${esc(d.discount||'')}" placeholder="0" ${ro?'disabled':''} style="padding:3px 6px"> %</span><span>−${money(tt.disc)}</span></div>
@@ -268,11 +268,11 @@ VIEWS.order = id => {
     </div>
     <div class="grid" style="align-content:start">
       <div class="card sidecard"><h4>Έγγραφα</h4><div class="sb">
-        <button class="sidebtn" data-act="doc" data-v="quote">📄 ${d.quoteNo?'Προσφορά '+esc(d.quoteNo):'Νέα προσφορά'}</button>
-        <button class="sidebtn" data-act="doc" data-v="contract">✍️ Συμφωνητικό</button>
+        <button class="sidebtn pr" data-act="doc" data-v="quote">📄 ${d.quoteNo?'Προσφορά '+esc(d.quoteNo):'Νέα προσφορά'}</button>
+        <button class="sidebtn pr" data-act="doc" data-v="contract">✍️ Συμφωνητικό</button>
         <button class="sidebtn" data-act="doc" data-v="delivery">🚚 Δελτίο αποστολής / packing slip</button></div></div>
-      <div class="card sidecard"><h4>Τιμολόγια</h4><div class="sb"><button class="sidebtn" data-act="doc" data-v="invoice">🧾 ${d.invoiceNo?'Προτιμολόγιο '+esc(d.invoiceNo):'Νέο προτιμολόγιο'}<span style="margin-left:auto" class="b">${money(tt.total)}</span></button></div></div>
-      <div class="card sidecard"><h4>Πληρωμές ${d.status!=='cancelled'?pill(ps,PAY):''}</h4><div class="sb">
+      <div class="card sidecard pr"><h4>Τιμολόγια</h4><div class="sb"><button class="sidebtn" data-act="doc" data-v="invoice">🧾 ${d.invoiceNo?'Προτιμολόγιο '+esc(d.invoiceNo):'Νέο προτιμολόγιο'}<span style="margin-left:auto" class="b">${money(tt.total)}</span></button></div></div>
+      <div class="card sidecard pr"><h4>Πληρωμές ${d.status!=='cancelled'?pill(ps,PAY):''}</h4><div class="sb">
         <div class="sum" style="font-size:13.5px"><div><span class="muted">Πληρώθηκαν</span><span>${money(tt.paid)}</span></div><div><span class="muted">Οφειλή</span><span class="b">${money(tt.due)}</span></div></div>
         ${(d.payments||[]).map((p,i)=>`<div class="li" style="padding:6px 0"><div><div class="small b">${money(p.amount)}</div><div class="xs muted">${fmtD(p.date)} · ${esc(p.method||'')}${p.note?' · '+esc(p.note):''}</div></div>${can('staff')?`<button class="icon" data-act="o-pay-del" data-i="${i}">✕</button>`:''}</div>`).join('')}
         ${can('staff')&&d.status!=='cancelled'?'<button class="btn" data-act="o-pay-new" style="justify-content:center">+ Νέα πληρωμή</button>':''}</div></div>

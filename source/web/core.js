@@ -19,7 +19,7 @@ const STATUS = {
 const HOLD = ['option','reserved','started'];
 const REVENUE = ['reserved','started','stopped'];
 const MSTATUS = { open:{l:'Ανοιχτό', c:'red'}, repair:{l:'Σε επισκευή', c:'orange'}, done:{l:'Ολοκληρώθηκε', c:'green'} };
-const ROLES = { admin:'Διαχειριστής', staff:'Προσωπικό', viewer:'Μόνο ανάγνωση' };
+const ROLES = { admin:'Διαχειριστής', staff:'Προσωπικό', viewer:'Μόνο ανάγνωση', tech:'Τεχνικός (χωρίς τιμές)' };
 const FAR = '9999-12-31';
 
 /* ---------- helpers ---------- */
@@ -41,13 +41,14 @@ const MONTHS = ['Ιαν','Φεβ','Μαρ','Απρ','Μαΐ','Ιουν','Ιου�
 const dow = s => new Date(s+'T00:00:00Z').getUTCDay();
 const num = v => { const n=parseFloat(String(v??'').replace(',','.')); return isFinite(n)?n:0; };
 const r2 = n => Math.round((n+Number.EPSILON)*100)/100;
-const money = n => r2(+n||0).toLocaleString('el-GR',{minimumFractionDigits:2,maximumFractionDigits:2})+' €';
+const money = n => NOPRICE() ? '—' : r2(+n||0).toLocaleString('el-GR',{minimumFractionDigits:2,maximumFractionDigits:2})+' €';
 const pill = (st, map=STATUS) => `<span class="pill ${(map[st]||{}).c||'gray'} ${map===STATUS?'solid':''}">${esc((map[st]||{}).l||st)}</span>`;
 const PAY = { none:{l:'—',c:'gray'}, due:{l:'Οφειλή',c:'orange'}, partial:{l:'Μερική πληρωμή',c:'orange'}, paid:{l:'Εξοφλήθηκε',c:'green'}, over:{l:'Υπερπληρωμή',c:'purple'} };
 function payStatus(o){ const t=orderTotals(o); if(t.total<=0 && !t.paid) return 'none'; if(t.paid<=0) return 'due'; if(t.paid+0.01<t.total) return 'partial'; if(t.paid>t.total+0.01) return 'over'; return 'paid'; }
 const initials = s => String(s||'?').trim().split(/\s+/).slice(0,2).map(w=>w[0]).join('').toUpperCase();
 const avColor = s => { let h=0; for(const ch of String(s||'')) h=(h*31+ch.charCodeAt(0))%360; return `hsl(${h} 55% 48%)`; };
-const can = lvl => { const r=UI.me?.role; return ({admin:3,staff:2,viewer:1}[r]||0) >= ({admin:3,staff:2,viewer:1}[lvl]||0); };
+const can = lvl => { const r=UI.me?.role; return ({admin:3,staff:2,viewer:1,tech:1}[r]||0) >= ({admin:3,staff:2,viewer:1}[lvl]||0); };
+const NOPRICE = () => UI.me?.role==='tech';
 const settings = () => D.settings.company || {};
 const vatRate = () => { const v=settings().vatRate; return v===undefined||v===''?24:num(v); };
 const debounce = (fn, ms) => { let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a), ms); }; };

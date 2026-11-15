@@ -117,6 +117,7 @@ ACT['m-del']=()=>{ const m=M.m; confirmBox('Διαγραφή εγγραφής;',
 
 /* ---------- reports ---------- */
 VIEWS.reports = () => {
+  if(NOPRICE()) return '<div class="card empty"><b>Δεν υπάρχει πρόσβαση</b>Οι αναφορές περιέχουν οικονομικά στοιχεία.</div>';
   const y=today().slice(0,4); const from=UI.repFrom||y+'-01-01', to=UI.repTo||y+'-12-31';
   const orders=Object.values(D.orders).filter(o=>REVENUE.includes(o.status)&&o.start&&o.start>=from&&o.start<=to);
   const totNet=orders.reduce((s,o)=>s+orderTotals(o).net,0);
@@ -237,6 +238,7 @@ ACT['usr-del']=el=>{ const u=D.users[el.dataset.id]; confirmBox(`Διαγραφ�
 /* ---------- documents ---------- */
 UI.docTab='all';
 VIEWS.documents = () => {
+  if(NOPRICE()) return '<div class="card empty"><b>Δεν υπάρχει πρόσβαση</b>Τα οικονομικά έγγραφα δεν είναι διαθέσιμα για τεχνικούς.</div>';
   const rows=[];
   for(const o of Object.values(D.orders)){ const t=orderTotals(o);
     if(o.quoteNo) rows.push({type:'quote', no:o.quoteNo, o, t});

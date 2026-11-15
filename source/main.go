@@ -289,10 +289,61 @@ func roleLevel(u Doc) int {
 		return 3
 	case "staff":
 		return 2
-	case "viewer":
+	case "viewer", "tech":
 		return 1
 	}
 	return 0
+}
+
+// Τεχνικοί: βλέπουν τα πάντα εκτός από τιμές/κόστη/πληρωμές και προσωπικά στοιχεία.
+// Τα πεδία αφαιρούνται στον server — δεν φτάνουν ποτέ στη συσκευή τους.
+func isTech(u Doc) bool { return u != nil && u["role"] == "tech" }
+
+func cloneDoc(d Doc) Doc {
+	b, _ := json.Marshal(d)
+	var c Doc
+	json.Unmarshal(b, &c)
+	return c
+}
+
+func stripPrices(coll string, d Doc) Doc {
+	c := cloneDoc(d)
+	del := func(m map[string]any, keys ...string) {
+		for _, k := range keys {
+			delete(m, k)
+		}
+	}
+	switch coll {
+	case "products":
+		del(c, "price", "extraMode", "extraValue", "replacement", "cost", "purchasePrice", "value")
+	case "units":
+		del(c, "price", "cost", "purchasePrice", "value")
+	case "orders":
+		del(c, "discount", "deposit", "vatRate", "payments", "total", "paid")
+		if ls, ok := c["lines"].([]any); ok {
+			for _, x := range ls {
+				if l, ok := x.(map[string]any); ok {
+					del(l, "price", "extraPrice", "discount")
+				}
+			}
+		}
+		if cs, ok := c["crew"].([]any); ok {
+			for _, x := range cs {
+				if a, ok := x.(map[string]any); ok {
+					del(a, "charge", "cost", "bill")
+				}
+			}
+		}
+	case "crew":
+		del(c, "cost", "rate", "idNumber", "birthDate", "notes")
+	case "customers":
+		del(c, "discount")
+	case "maintenance":
+		del(c, "cost", "price")
+	case "settings":
+		del(c, "bank", "crewToken")
+	}
+	return c
 }
 
 func userName(u Doc) string {
@@ -427,6 +478,8 @@ func hState(w http.ResponseWriter, r *http.Request, u Doc) {
 			}
 			if name == "users" {
 				d = publicUser(d)
+			} else if isTech(u) {
+				d = stripPrices(name, d)
 			}
 			list = append(list, d)
 		}
@@ -572,7 +625,7 @@ func hUserSave(w http.ResponseWriter, r *http.Request, u Doc) {
 		return
 	}
 	in.Username = strings.TrimSpace(in.Username)
-	if in.Username == "" || (in.Role != "admin" && in.Role != "staff" && in.Role != "viewer") {
+	if in.Username == "" || (in.Role != "admin" && in.Role != "staff" && in.Role != "viewer" && in.Role != "tech") {
 		fail(w, 400, "Συμπλήρωσε όνομα χρήστη και ρόλο")
 		return
 	}

@@ -28,11 +28,11 @@ function crewPeople(){
   const nx=c=>{ const n=next[c.id]; return n?`<a class="lk small" href="#order-${n.o.id}">${n.a.start===t?'Σήμερα':fmtD(n.a.start)} · ${esc(n.o.number)}</a>`:'<span class="faint small">—</span>'; };
   const rows=list.map(c=>`<tr class="click" data-act="crew-edit" data-id="${c.id}"><td><div class="pcell">${crewAv(c)}<div><b>${esc(c.name)}</b> ${crewTypeTag(c)}<div class="xs muted">${esc(c.role||'')}</div></div></div></td>
     <td class="small">${c.phone?`<a href="tel:${esc(c.phone)}" class="lk" data-stop>${esc(c.phone)}</a>`:''}${c.email?`<div class="xs muted">${esc(c.email)}</div>`:''}</td>
-    <td class="small">${rateLabel(c.cost,c.payType)}</td><td class="small">${rateLabel(c.rate,c.payType)}</td>
+    <td class="small pr">${rateLabel(c.cost,c.payType)}</td><td class="small pr">${rateLabel(c.rate,c.payType)}</td>
     <td>${busyToday(c)?'<span class="pill orange">Απασχολημένος σήμερα</span>':'<span class="pill green">Διαθέσιμος</span>'}</td><td>${nx(c)}</td></tr>`).join('');
   const mrows=list.map(c=>`<a class="mrow" href="#" data-act="crew-edit" data-id="${c.id}">${crewAv(c,40)}<div class="mrow-m"><div class="mrow-n">${esc(c.name)}</div><div class="mrow-s">${esc(c.role||'')} · ${c.type==='freelance'?'Εξωτερικός':'Μόνιμος'}</div><div class="mrow-s">${next[c.id]?'Επόμενη: '+(next[c.id].a.start===t?'Σήμερα':fmtD(next[c.id].a.start))+' · '+esc(next[c.id].o.number):''}</div></div><div class="mrow-r">${busyToday(c)?'<span class="pill orange">Σήμερα</span>':'<span class="pill green">Ελεύθερος</span>'}</div></a>`).join('');
   return seg+`<div class="card p0"><div class="card-h"><input type="search" class="grow" style="max-width:420px" placeholder="Αναζήτηση ονόματος, ειδικότητας, τηλεφώνου…" data-bind="crewQ" value="${esc(UI.crewQ)}"></div>
-    ${list.length?(isM()?`<div class="mlist">${mrows}</div>`:`<div class="tw"><table><thead><tr><th>Όνομα</th><th>Επικοινωνία</th><th>Κόστος</th><th>Χρέωση πελάτη</th><th>Σήμερα</th><th>Επόμενη δουλειά</th></tr></thead><tbody>${rows}</tbody></table></div>`)
+    ${list.length?(isM()?`<div class="mlist">${mrows}</div>`:`<div class="tw"><table><thead><tr><th>Όνομα</th><th>Επικοινωνία</th><th class="pr">Κόστος</th><th class="pr">Χρέωση πελάτη</th><th>Σήμερα</th><th>Επόμενη δουλειά</th></tr></thead><tbody>${rows}</tbody></table></div>`)
       :`<div class="empty"><b>${all.length?'Κανένα αποτέλεσμα':'Δεν έχεις προσθέσει άτομα ακόμη'}</b>${all.length?'':'Πρόσθεσε το μόνιμο προσωπικό και τους εξωτερικούς συνεργάτες σου.'}</div>`}</div>`;
 }
 function defWeek(){ const t=today(); return new Date(t+'T00:00:00Z').getUTCDay()===0 ? addDays(t,1) : weekStart(t); }
@@ -152,12 +152,12 @@ function crewCard(d, ro){
     return `<div class="crow">${crewAv(c,36)}<div class="grow" style="min-width:0"><div><b>${esc(c?c.name:'(διαγραμμένο άτομο)')}</b> <span class="small muted">${esc(a.role||'')}</span></div>
       <div class="xs muted">${fmtD(a.start)}${a.end&&a.end!==a.start?' → '+fmtD(a.end):''} · ${esc(a.from||'')}–${esc(a.to||'')} · ${crewDays(a)} ${crewDays(a)===1?'ημέρα':'ημέρες'}${a.note?' · '+esc(a.note):''}</div>
       ${clash.length?`<div class="xs" style="color:var(--red);font-weight:600">⚠ ${clash.map(x=>x.type==='off'?'Μη διαθέσιμος ('+esc(x.off.note||'άδεια')+')':'Και στην '+esc(x.order.number)).join(' · ')}</div>`:''}</div>
-      <div class="crow-r"><div class="small b">${a.bill===false?'<span class="faint">Χωρίς χρέωση</span>':money(crewCharge(a))}</div><div class="xs muted">κόστος ${money(crewCost(a))}</div></div>
+      <div class="crow-r pr"><div class="small b">${a.bill===false?'<span class="faint">Χωρίς χρέωση</span>':money(crewCharge(a))}</div><div class="xs muted">κόστος ${money(crewCost(a))}</div></div>
       ${ro?'':`<button class="icon" data-act="o-crew-edit" data-i="${i}" title="Επεξεργασία">✎</button><button class="icon" data-act="o-crew-del" data-i="${i}" title="Αφαίρεση">✕</button>`}</div>`; }).join('');
   const margin=r2(tt.net-tt.crewCost);
   return `<div class="card p0"><div class="card-h"><h2>Συνεργείο ${list.length?`<span class="faint">(${list.length})</span>`:''}</h2>${ro?'':'<button class="btn sm" data-act="o-crew-add">+ Ανάθεση ατόμου</button>'}</div>
     ${rows||`<div class="empty" style="padding:22px">Δεν έχει ανατεθεί προσωπικό.${ro?'':' Πρόσθεσε τεχνικούς, οδηγούς και βοηθούς για αυτή τη δουλειά.'}</div>`}
-    ${list.length?`<div class="crew-sum"><span>Χρέωση πελάτη <b>${money(tt.crewCharge)}</b></span><span>Κόστος <b>${money(tt.crewCost)}</b></span>${can('staff')?`<span>Περιθώριο παραγγελίας <b class="${margin<0?'late':''}">${money(margin)}</b></span>`:''}</div>`:''}</div>`;
+    ${list.length?`<div class="crew-sum pr"><span>Χρέωση πελάτη <b>${money(tt.crewCharge)}</b></span><span>Κόστος <b>${money(tt.crewCost)}</b></span>${can('staff')?`<span>Περιθώριο παραγγελίας <b class="${margin<0?'late':''}">${money(margin)}</b></span>`:''}</div>`:''}</div>`;
 }
 ACT['o-crew-add']=()=>{ const d=UI.draft; asgModal(null, {id:uid('ca'), cid:'', role:'', start:d.start, end:d.end||d.start, from:'08:00', to:'18:00', bill:true, charge:'', cost:'', note:''}); };
 ACT['o-crew-edit']=el=>{ const d=UI.draft; asgModal(+el.dataset.i, deepCopy(d.crew[+el.dataset.i])); };

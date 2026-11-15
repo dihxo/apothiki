@@ -79,8 +79,7 @@ function navHTML(){
     a('crew','crew','Συνεργείο')+
     a('products','box','Εξοπλισμός','',['product-','categories'])+
     a('maintenance','wrench','Συντήρηση', mnt?`<span class="cnt" style="background:var(--orange)">${mnt}</span>`:'')+
-    a('documents','doc','Έγγραφα')+'<hr>'+
-    a('reports','chart','Αναφορές');
+    (NOPRICE()?'':a('documents','doc','Έγγραφα')+'<hr>'+a('reports','chart','Αναφορές'));
 }
 
 function render(){
@@ -91,7 +90,7 @@ function render(){
   const sb=$('#sideBottom'); if(sb){ const r0=route(); sb.innerHTML=`<a href="#scan" class="${r0==='scan'?'on':''}">${svg('scan')}Σάρωση barcode</a><a href="#setup" class="${r0==='setup'?'on':''}">${svg('gear')}Ρυθμίσεις</a>`; }
   const r=route(); UI.route=r;
   const bn=$('#bnav'); if(bn) bn.innerHTML=bnavHTML(r);
-  document.body.classList.toggle('whmode', r.startsWith('wh-'));
+  document.body.classList.toggle('whmode', r.startsWith('wh-')); document.body.classList.toggle('noprice', NOPRICE());
   const dash=r.indexOf('-'); const key = VIEWS[r] ? r : (dash>0 ? r.slice(0,dash) : r); const arg = VIEWS[r] ? '' : (dash>0 ? r.slice(dash+1) : '');
   const fn = VIEWS[key] || VIEWS.dashboard;
   let html='';

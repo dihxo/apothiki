@@ -48,6 +48,7 @@ function pdfTable(P, y, cols, rows, o={}){ // cols:[{t,w,align}] (w σε mm, έ�
 }
 
 async function pdfOrderDoc(o, kind){
+  if(NOPRICE()&&kind!=='delivery') return toast('Οι τεχνικοί βλέπουν μόνο το δελτίο αποστολής.', true);
   const titles={quote:'ΠΡΟΣΦΟΡΑ', delivery:'ΔΕΛΤΙΟ ΑΠΟΣΤΟΛΗΣ', invoice:'ΠΡΟΤΙΜΟΛΟΓΙΟ', contract:'ΣΥΜΦΩΝΗΤΙΚΟ ΕΝΟΙΚΙΑΣΗΣ'};
   const fnames={quote:'Προσφορά', delivery:'Δελτίο αποστολής', invoice:'Προτιμολόγιο', contract:'Συμφωνητικό'};
   const s=settings(), c=D.customers[o.customerId]||{}, tt=orderTotals(o);
