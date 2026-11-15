@@ -526,3 +526,31 @@ body.docopen{overflow:hidden}
 
 .pdfready{display:flex;align-items:center;gap:12px}
 .pdfic{width:44px;height:54px;border-radius:6px;background:#d93025;color:#fff;font-weight:800;font-size:13px;display:grid;place-items:center;flex:none;box-shadow:inset 0 -14px 0 rgba(0,0,0,.12)}
+/* κατηγορίες: κουμπάκια στο κινητό */
+.mcatw{border-bottom:1px solid var(--line);padding:10px 0 4px}
+.mchips{display:flex;gap:7px;overflow-x:auto;padding:0 14px 8px;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+.mchips::-webkit-scrollbar{display:none}
+.mchip{flex:none;display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:#fff;border-radius:99px;padding:8px 13px;font:inherit;font-size:13.5px;font-weight:600;color:var(--ink);white-space:nowrap;cursor:pointer}
+.mchip span{font-size:11.5px;font-weight:700;color:var(--muted);background:var(--soft);border-radius:99px;padding:1px 7px}
+.mchip.on{background:var(--dark);border-color:var(--dark);color:#fff}.mchip.on span{background:var(--brand);color:var(--dark)}
+.mchips.sub .mchip{padding:6px 11px;font-size:12.5px;font-weight:500;background:var(--soft);border-color:transparent}
+.mchips.sub .mchip.on{background:var(--pri-soft);border-color:var(--brand);color:var(--dark)}.mchips.sub .mchip.on span{background:#fff}
+/* σελίδα κατηγοριών */
+.catgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px;align-items:start}
+.catgrp{padding:0;overflow:hidden}
+.catgh{display:flex;align-items:center;gap:8px;padding:14px 14px 12px;border-bottom:1px solid var(--line);background:linear-gradient(90deg,var(--pri-soft),#fff 70%)}
+.catrow{display:flex;align-items:center;gap:8px;padding:9px 14px;border-bottom:1px solid var(--line)}
+.catname{flex:1;min-width:0;text-decoration:none;color:var(--ink);font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.catname.main{font-weight:800;font-size:15.5px}
+.catn{font-size:12px;color:var(--muted);background:var(--soft);border-radius:99px;padding:1px 8px;flex:none}
+.catgh .catn{background:#fff}
+.catacts{display:flex;gap:2px;flex:none}.catacts .icon{width:30px;height:30px;font-size:13px;color:var(--faint)}.catacts .icon:hover{color:var(--ink)}
+.catadd{display:block;width:100%;text-align:left;border:none;background:none;padding:10px 14px;color:var(--brand-ink);font:inherit;font-size:13px;font-weight:600;cursor:pointer}
+.catadd:hover{background:var(--pri-soft)}
+@media(max-width:700px){.catgrid{grid-template-columns:1fr}}
+.split-l>*{min-width:0}
+.split-l>.card{max-width:100%}
+@media(max-width:700px){.split-l{grid-template-columns:minmax(0,1fr)!important}}
+.mcatw{max-width:100%;overflow:hidden}
+.mlist{display:block}
+.mrow{min-width:0;max-width:100%}

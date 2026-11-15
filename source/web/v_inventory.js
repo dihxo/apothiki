@@ -31,8 +31,8 @@ VIEWS.products = () => {
   <div class="split-l">
     <div class="card tree" style="padding:10px"><a class="${UI.prodCat==='all'?'on':''}" data-act="tab" data-k="prodCat" data-v="all">Όλες οι κατηγορίες<span>${cnt.all}</span></a>${tree('',0)}${noCat?`<a class="${UI.prodCat==='none'?'on':''}" data-act="tab" data-k="prodCat" data-v="none">Χωρίς κατηγορία<span>${noCat}</span></a>`:''}<div style="padding:8px 9px 2px"><a href="#categories" class="small" style="padding:0;color:var(--pri)">Διαχείριση κατηγοριών →</a></div></div>
     <div class="card p0"><div class="card-h"><input type="search" class="grow" style="max-width:420px" placeholder="Αναζήτηση ονόματος, κωδικού, θέσης…" data-bind="prodQ" value="${esc(UI.prodQ)}"><span class="xs muted hide-m">«Διαθέσιμα» = ελεύθερα σήμερα</span></div>
-    ${isM()?`<div class="mcat"><select data-mcat="1">${[['all','Όλες οι κατηγορίες ('+cnt.all+')']].concat(catsSorted().map(c=>[c.id,c.path+' ('+(counts[c.id]||0)+')'])).concat(noCat?[['none','Χωρίς κατηγορία ('+noCat+')']]:[]).map(([v,l])=>`<option value="${v}" ${UI.prodCat===v?'selected':''}>${esc(l)}</option>`).join('')}</select></div>`:''}
-    ${list.length&&isM()?`<div class="mlist">${list.slice(0,UI.mProdN||60).map(p=>{ const st=stockOf(p.id), fr=freeUnits(p.id,t,t).free; return `<a class="mrow" href="#product-${p.id}">${prodImg(p,46)}<div class="mrow-m"><div class="mrow-n">${esc(p.name)}</div><div class="mrow-s mono">${esc(p.sku)}</div><div class="mrow-s">${esc(catPath(p.cat))||''}${p.location?' · 📍 '+esc(p.location):''}</div></div><div class="mrow-r"><span class="avb ${avCls(fr)}">${fr}</span><small>από ${st}</small></div></a>`; }).join('')}${list.length>(UI.mProdN||60)?`<button class="btn mmore" data-act="mprod-more">Εμφάνιση περισσότερων (${list.length-(UI.mProdN||60)})</button>`:''}</div>`:list.length?`<div class="tw"><table><thead><tr><th><input type="checkbox" data-act="p-sel-all" ${allSel?'checked':''}></th><th>Προϊόν</th><th>Κατηγορία</th><th>Τύπος</th><th class="num">Απόθεμα</th><th class="num">Διαθέσιμα</th><th class="num">Τιμή</th><th>Θέση</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>`
+    ${isM()?mcatChips(cnt.all,noCat):''}
+    ${list.length&&isM()?`<div class="mlist">${list.slice(0,UI.mProdN||60).map(p=>{ const st=stockOf(p.id), fr=freeUnits(p.id,t,t).free; return `<a class="mrow" href="#product-${p.id}">${prodImg(p,46)}<div class="mrow-m"><div class="mrow-n">${esc(p.name)}</div><div class="mrow-s mono">${esc(p.sku)}</div><div class="mrow-s">${p.cat&&D.categories[p.cat]?esc(catShort(D.categories[p.cat].name)):''}${p.location?' · 📍 '+esc(p.location):''}</div></div><div class="mrow-r"><span class="avb ${avCls(fr)}">${fr}</span><small>από ${st}</small></div></a>`; }).join('')}${list.length>(UI.mProdN||60)?`<button class="btn mmore" data-act="mprod-more">Εμφάνιση περισσότερων (${list.length-(UI.mProdN||60)})</button>`:''}</div>`:list.length?`<div class="tw"><table><thead><tr><th><input type="checkbox" data-act="p-sel-all" ${allSel?'checked':''}></th><th>Προϊόν</th><th>Κατηγορία</th><th>Τύπος</th><th class="num">Απόθεμα</th><th class="num">Διαθέσιμα</th><th class="num">Τιμή</th><th>Θέση</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>`
     :`<div class="empty"><b>${Object.keys(D.products).length?'Κανένα αποτέλεσμα':'Δεν υπάρχουν προϊόντα ακόμη'}</b>${Object.keys(D.products).length?'Δοκίμασε άλλη αναζήτηση ή κατηγορία.':'Πρόσθεσε το πρώτο σου προϊόν.'}</div>`}</div>
   </div>`;
 };
@@ -284,14 +284,28 @@ ACT['u-mnt']=()=>{ const u=M.u; closeModal(); maintenanceModal(null,{productId:u
 ACT['new-mnt-for']=el=>maintenanceModal(null,{productId:el.dataset.id, start:today()});
 
 /* ---------- categories ---------- */
+/* κατηγορίες στο κινητό: οριζόντια κουμπάκια (κύριες) + υποκατηγορίες */
+function catShort(n){ return String(n||'').replace(/^\s*\d+\.\s*/,''); }
+function catCount(id){ const set=catDesc(id); let n=0; for(const p of Object.values(D.products)) if(!p.archived&&set.has(p.cat)) n++; return n; }
+function mcatChips(all, noCat){
+  const cats=Object.values(D.categories); const mains=sortBy(cats.filter(c=>!c.parent||!D.categories[c.parent]),c=>c.name);
+  const sel=UI.prodCat; let main=null; if(sel&&D.categories[sel]){ main=D.categories[sel]; while(main.parent&&D.categories[main.parent]) main=D.categories[main.parent]; }
+  const chip=(v,l,n,on)=>`<button type="button" class="mchip${on?' on':''}" data-act="tab" data-k="prodCat" data-v="${v}">${esc(l)}<span>${n}</span></button>`;
+  const row1=chip('all','Όλα',all,sel==='all'||!sel)+mains.map(c=>chip(c.id,catShort(c.name),catCount(c.id),main&&main.id===c.id)).join('')+(noCat?chip('none','Χωρίς κατηγορία',noCat,sel==='none'):'');
+  let row2=''; if(main){ const subs=sortBy(cats.filter(c=>c.parent===main.id),c=>c.name); if(subs.length) row2=`<div class="mchips sub">${chip(main.id,'Όλα · '+catShort(main.name),catCount(main.id),sel===main.id)}${subs.map(c=>chip(c.id,catShort(c.name),catCount(c.id),sel===c.id)).join('')}</div>`; }
+  return `<div class="mcatw"><div class="mchips">${row1}</div>${row2}</div>`;
+}
 VIEWS.categories = () => {
-  const counts={}; for(const p of Object.values(D.products)) counts[p.cat]=(counts[p.cat]||0)+1;
-  const tree=(parent,depth)=>depth>9?"":sortBy(Object.values(D.categories).filter(c=>(c.parent||'')===(parent||'')),c=>c.name).map(c=>`
-    <div class="li" style="padding-left:${depth*24}px"><div>${depth?'<span class="faint">└ </span>':''}<b class="${depth?'catsub':'catmain'}">${esc(c.name)}</b> <span class="small muted">${counts[c.id]||0} προϊόντα</span></div>
-    ${can('staff')?`<div class="row"><button class="btn sm" data-act="cat-add" data-parent="${c.id}">+ Υποκατηγορία</button><button class="icon" data-act="cat-edit" data-id="${c.id}">✎</button><button class="icon" data-act="cat-del" data-id="${c.id}">✕</button></div>`:''}</div>`+tree(c.id,depth+1)).join('');
-  return `<div class="ph"><div><h1>Κατηγορίες</h1><p class="sub">Ιεραρχική ταξινόμηση (π.χ. Ήχος › Μικρόφωνα › Ασύρματα)</p></div>${can('staff')?`<button class="btn pri" data-act="cat-add" data-parent="">+ Νέα κατηγορία</button>`:''}</div>
-  <div class="card">${Object.keys(D.categories).length?tree('',0):'<div class="empty"><b>Δεν υπάρχουν κατηγορίες</b>Ξεκίνα με κύριες κατηγορίες: Ήχος, Φωτισμός, Video, Καλώδια, Ρεύμα, Truss, Έπιπλα.</div>'}</div>`;
+  const cats=Object.values(D.categories); const st=can('staff');
+  const mains=sortBy(cats.filter(c=>!c.parent||!D.categories[c.parent]),c=>c.name);
+  const acts=c=>st?`<span class="catacts"><button class="icon sm" data-act="cat-edit" data-id="${c.id}" title="Μετονομασία">✎</button><button class="icon sm" data-act="cat-del" data-id="${c.id}" title="Διαγραφή">✕</button></span>`:'';
+  const subTree=(parent,depth)=>depth>8?'':sortBy(cats.filter(c=>c.parent===parent),c=>c.name).map(c=>`<div class="catrow" style="padding-left:${14+depth*16}px"><a class="catname" href="#products" data-act="cat-open" data-id="${c.id}">${esc(catShort(c.name))}</a><span class="catn">${catCount(c.id)}</span>${acts(c)}</div>`+subTree(c.id,depth+1)).join('');
+  const groups=mains.map(c=>`<div class="card catgrp"><div class="catgh"><a class="catname main" href="#products" data-act="cat-open" data-id="${c.id}">${esc(c.name)}</a><span class="catn">${catCount(c.id)} προϊόντα</span>${acts(c)}</div>
+      ${subTree(c.id,0)}${st?`<button class="catadd" data-act="cat-add" data-parent="${c.id}">+ Υποκατηγορία</button>`:''}</div>`).join('');
+  return `<div class="ph"><div><h1>Κατηγορίες</h1><p class="sub">Κύριες κατηγορίες και υποκατηγορίες εξοπλισμού</p></div>${st?`<button class="btn pri" data-act="cat-add" data-parent="">+ Νέα κατηγορία</button>`:''}</div>
+  ${mains.length?`<div class="catgrid">${groups}</div>`:'<div class="card empty"><b>Δεν υπάρχουν κατηγορίες</b>Ξεκίνα με κύριες κατηγορίες: Ήχος, Φωτισμός, Video, Καλώδια, Ρεύμα, Truss.</div>'}`;
 };
+ACT['cat-open']=(el,e)=>{ if(e) e.preventDefault(); UI.prodCat=el.dataset.id; UI.mProdN=60; location.hash='products'; };
 function catModal(id, parent){ const c=id?{...D.categories[id]}:{id:null,name:'',parent:parent||''}; M={type:'cat',c};
   openModal(`<div class="dlg-h"><h2>${id?'Επεξεργασία':'Νέα'} κατηγορία</h2><button class="icon" data-act="modal-close">✕</button></div><div class="dlg-b">
   <label class="f">Όνομα<input type="text" id="catName" value="${esc(c.name)}" autofocus></label><label class="f">Γονική κατηγορία<select id="catParent">${catOptions(c.parent,'— Κύρια κατηγορία —',id?catDesc(id):null)}</select></label></div>
