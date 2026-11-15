@@ -503,3 +503,11 @@ tr.sel td{background:#fffbea}
   .pick-add .gres{min-width:0;max-height:52vh}
   .gres a{padding:11px 12px}
 }
+@media(max-width:700px){
+  .ocol-name{min-width:150px}
+  .ogrid .tw td,.ogrid .tw th{padding-left:8px;padding-right:8px}
+  .ogrid .tw td:first-child,.ogrid .tw th:first-child{padding-left:12px}
+  .ogrid .avpill{padding:4px 6px;font-size:11.5px}
+  .qbox input{width:40px;padding:8px 2px}
+  .qbox button{width:36px;font-size:18px}
+}
