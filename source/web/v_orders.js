@@ -544,9 +544,9 @@ ACT['doc']=async el=>{
   if(kind==='invoice' && !d.invoiceNo && can('staff')){ d.invoiceNo=(settings().invoicePrefix||'ΠΤ-')+String(await nextNumber('invoice')).padStart(4,'0'); await saveOrder(); }
   printOrderDoc(d, kind);
 };
-const DOC_CSS=`@page{size:A4;margin:12mm 12mm 14mm} body{padding:0;font-size:9.5pt;color:#1d1d1f;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+const DOC_CSS=`@page{size:A4;margin:12mm 14mm 14mm} body{padding:9mm 8mm 10mm;max-width:210mm;margin:0 auto;font-size:9.5pt;color:#1d1d1f;-webkit-print-color-adjust:exact;print-color-adjust:exact}
   .dh{display:flex;justify-content:space-between;align-items:flex-start;gap:10mm}
-  .dlogo{height:17mm;width:auto;display:block;margin:0 0 3mm -1mm}
+  .dlogo{height:17mm;width:auto;max-width:70mm;object-fit:contain;display:block;margin:0 0 3mm 0}
   .dco{font-size:8.3pt;color:#666;line-height:1.45}.dco b{color:#1d1d1f;font-size:9pt}
   .dh-r{text-align:right;min-width:62mm}
   .dtype{font-size:15pt;letter-spacing:.18em;font-weight:800;color:#1d1d1f;margin:1mm 0 3mm}
@@ -577,6 +577,7 @@ const DOC_CSS=`@page{size:A4;margin:12mm 12mm 14mm} body{padding:0;font-size:9.5
   .dsig{display:grid;grid-template-columns:1.3fr 1.3fr 1fr;gap:8mm;margin-top:12mm}.dsig div{border-top:1px solid #999;padding-top:1.5mm;font-size:8pt;color:#777}
   .dfoot{margin-top:10mm;padding-top:3mm;border-top:1px solid #eee;text-align:center;font-size:7.8pt;color:#999}
   .sig{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8mm;margin-top:16mm}.sig div{border-top:1px solid #999;padding-top:1.5mm;font-size:8.5pt;color:#666}
+  @media print{body{padding:0;max-width:none}}
   table:not(.ditems):not(.dmeta){margin-top:6mm} table:not(.ditems):not(.dmeta) th{font-size:8pt;letter-spacing:.06em;text-transform:uppercase;color:#777}`;
 function printOrderDoc(o, kind){
   const s=settings(), c=D.customers[o.customerId]||{}, tt=orderTotals(o);
