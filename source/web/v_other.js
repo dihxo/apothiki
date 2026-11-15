@@ -60,7 +60,7 @@ function customerModal(id, onSaved, prefill){
   <div class="f2">${f('name','Ονοματεπώνυμο / υπεύθυνος')}${f('company','Εταιρεία (προαιρετικό)')}</div>
   <div class="f2">${f('phone','Τηλέφωνο','tel')}${f('email','Email','email')}</div>
   <div class="f2">${f('address','Διεύθυνση')}${f('city','Πόλη / ΤΚ')}</div>
-  <div class="f3">${f('vat','ΑΦΜ')}${f('doy','ΔΟΥ')}${f('discount','Έκπτωση %','number')}</div>
+  <div class="f3">${f('vat','ΑΦΜ')}${f('doy','ΔΟΥ')}${NOPRICE()?'':f('discount','Έκπτωση %','number')}</div>
   <label class="f">Σημειώσεις<textarea data-cm="notes">${esc(c.notes)}</textarea></label></div>
   <div class="dlg-f">${id?'<button class="btn dangerous" data-act="c-del" style="margin-right:auto">Διαγραφή</button>':''}<button class="btn" data-act="modal-close">Άκυρο</button><button class="btn pri" data-act="c-save" data-primary>Αποθήκευση</button></div>`);
 }

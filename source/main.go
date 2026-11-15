@@ -20,6 +20,7 @@ import (
 	"io"
 	"io/fs"
 	"log"
+	"math"
 	"math/big"
 	"net"
 	"net/http"
@@ -289,7 +290,9 @@ func roleLevel(u Doc) int {
 		return 3
 	case "staff":
 		return 2
-	case "viewer", "tech":
+	case "tech":
+		return 2
+	case "viewer":
 		return 1
 	}
 	return 0
@@ -298,6 +301,165 @@ func roleLevel(u Doc) int {
 // Τεχνικοί: βλέπουν τα πάντα εκτός από τιμές/κόστη/πληρωμές και προσωπικά στοιχεία.
 // Τα πεδία αφαιρούνται στον server — δεν φτάνουν ποτέ στη συσκευή τους.
 func isTech(u Doc) bool { return u != nil && u["role"] == "tech" }
+
+// Όταν αποθηκεύει τεχνικός (που δεν έχει τιμές), κρατάμε τα οικονομικά πεδία από την
+// αποθηκευμένη εγγραφή και βάζουμε τιμοκατάλογο στις νέες γραμμές. Ο τεχνικός δεν
+// μπορεί να αλλάξει τιμές/εκπτώσεις/πληρωμές.
+func numv(v any) (float64, bool) {
+	switch x := v.(type) {
+	case float64:
+		return x, true
+	case string:
+		var f float64
+		if _, err := fmt.Sscan(x, &f); err == nil {
+			return f, true
+		}
+	}
+	return 0, false
+}
+
+func productDayPrice(pid string, depth int) float64 {
+	p := db.Colls["products"][pid]
+	if p == nil || depth > 4 {
+		return 0
+	}
+	if v, ok := numv(p["price"]); ok {
+		return v
+	}
+	if p["kind"] == "bundle" {
+		sum := 0.0
+		if cs, ok := p["components"].([]any); ok {
+			for _, x := range cs {
+				if c, ok := x.(map[string]any); ok {
+					q, _ := numv(c["qty"])
+					sum += q * productDayPrice(fmt.Sprint(c["pid"]), depth+1)
+				}
+			}
+		}
+		return sum
+	}
+	return 0
+}
+
+func linePriceFromCatalog(l map[string]any) {
+	pid := fmt.Sprint(l["pid"])
+	p := db.Colls["products"][pid]
+	if p == nil {
+		l["price"] = 0
+		return
+	}
+	pr := productDayPrice(pid, 0)
+	l["price"] = math.Round(pr*100) / 100
+	pt := fmt.Sprint(p["priceType"])
+	if pt != "flat" {
+		pt = "day"
+	}
+	l["priceType"] = pt
+	val, _ := numv(p["extraValue"])
+	switch p["extraMode"] {
+	case "pct":
+		l["extraPrice"] = math.Round(pr*val) / 100
+	case "amount":
+		l["extraPrice"] = val
+	default:
+		delete(l, "extraPrice")
+	}
+	delete(l, "discount")
+}
+
+func techMerge(coll string, d, old Doc) Doc {
+	keep := func(keys ...string) {
+		for _, k := range keys {
+			delete(d, k)
+			if old != nil {
+				if v, ok := old[k]; ok {
+					d[k] = v
+				}
+			}
+		}
+	}
+	switch coll {
+	case "products":
+		keep("price", "extraMode", "extraValue", "replacement", "cost", "purchasePrice", "value")
+		if old == nil {
+			d["extraMode"] = "pct"
+			d["extraValue"] = 10
+		}
+	case "units":
+		keep("price", "cost", "purchasePrice", "value")
+	case "customers":
+		keep("discount")
+	case "maintenance":
+		keep("cost", "price")
+	case "crew":
+		keep("cost", "rate", "idNumber", "birthDate", "notes")
+	case "orders":
+		keep("discount", "deposit", "vatRate", "payments", "total", "paid")
+		oldLines := map[string]map[string]any{}
+		if old != nil {
+			if ls, ok := old["lines"].([]any); ok {
+				for _, x := range ls {
+					if l, ok := x.(map[string]any); ok {
+						oldLines[fmt.Sprint(l["id"])] = l
+					}
+				}
+			}
+		}
+		if ls, ok := d["lines"].([]any); ok {
+			for _, x := range ls {
+				l, ok := x.(map[string]any)
+				if !ok {
+					continue
+				}
+				if ol := oldLines[fmt.Sprint(l["id"])]; ol != nil && fmt.Sprint(ol["pid"]) == fmt.Sprint(l["pid"]) {
+					for _, k := range []string{"price", "extraPrice", "discount", "priceType"} {
+						delete(l, k)
+						if v, ok := ol[k]; ok {
+							l[k] = v
+						}
+					}
+				} else if l["pid"] != nil && l["pid"] != "" {
+					linePriceFromCatalog(l)
+				} else { // ελεύθερη γραμμή από τεχνικό: χωρίς τιμή (τη συμπληρώνει το γραφείο)
+					l["price"] = 0
+					delete(l, "extraPrice")
+					delete(l, "discount")
+				}
+			}
+		}
+		oldCrew := map[string]map[string]any{}
+		if old != nil {
+			if cs, ok := old["crew"].([]any); ok {
+				for _, x := range cs {
+					if a, ok := x.(map[string]any); ok {
+						oldCrew[fmt.Sprint(a["id"])] = a
+					}
+				}
+			}
+		}
+		if cs, ok := d["crew"].([]any); ok {
+			for _, x := range cs {
+				a, ok := x.(map[string]any)
+				if !ok {
+					continue
+				}
+				for _, k := range []string{"charge", "cost", "bill"} {
+					delete(a, k)
+				}
+				if oa := oldCrew[fmt.Sprint(a["id"])]; oa != nil {
+					for _, k := range []string{"charge", "cost", "bill"} {
+						if v, ok := oa[k]; ok {
+							a[k] = v
+						}
+					}
+				} else {
+					a["bill"] = true
+				}
+			}
+		}
+	}
+	return d
+}
 
 func cloneDoc(d Doc) Doc {
 	b, _ := json.Marshal(d)
@@ -535,6 +697,9 @@ func hBatch(w http.ResponseWriter, r *http.Request, u Doc) {
 		d := op.Doc
 		if d == nil {
 			d = Doc{}
+		}
+		if isTech(u) {
+			d = techMerge(op.Coll, d, db.Colls[op.Coll][op.ID])
 		}
 		d["id"] = op.ID
 		d["updatedAt"] = now()

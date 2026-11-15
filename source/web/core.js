@@ -47,7 +47,7 @@ const PAY = { none:{l:'—',c:'gray'}, due:{l:'Οφειλή',c:'orange'}, partia
 function payStatus(o){ const t=orderTotals(o); if(t.total<=0 && !t.paid) return 'none'; if(t.paid<=0) return 'due'; if(t.paid+0.01<t.total) return 'partial'; if(t.paid>t.total+0.01) return 'over'; return 'paid'; }
 const initials = s => String(s||'?').trim().split(/\s+/).slice(0,2).map(w=>w[0]).join('').toUpperCase();
 const avColor = s => { let h=0; for(const ch of String(s||'')) h=(h*31+ch.charCodeAt(0))%360; return `hsl(${h} 55% 48%)`; };
-const can = lvl => { const r=UI.me?.role; return ({admin:3,staff:2,viewer:1,tech:1}[r]||0) >= ({admin:3,staff:2,viewer:1}[lvl]||0); };
+const can = lvl => { const r=UI.me?.role; return ({admin:3,staff:2,viewer:1,tech:2}[r]||0) >= ({admin:3,staff:2,viewer:1}[lvl]||0); };
 const NOPRICE = () => UI.me?.role==='tech';
 const settings = () => D.settings.company || {};
 const vatRate = () => { const v=settings().vatRate; return v===undefined||v===''?24:num(v); };

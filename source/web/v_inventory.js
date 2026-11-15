@@ -203,11 +203,11 @@ function drawProductModal(){
     <div class="f3">
       ${!isB&&p.tracking!=='serial'?`<label class="f">Ποσότητα *<input type="number" min="0" step="1" data-pm="qty" value="${esc(p.qty)}"></label>`:''}
       ${!isB&&p.tracking==='serial'&&!p.id?`<label class="f">Αρχικά τεμάχια<input type="number" min="0" step="1" data-pm="_units" value="${esc(p._units)}"></label>`:''}
-      <label class="f">Τιμή (€, χωρίς ΦΠΑ)<input type="number" min="0" step="0.01" data-pm="price" value="${esc(p.price)}" placeholder="${isB?'Κενό = άθροισμα':''}"></label>
-      <label class="f">Χρέωση<select data-pm="priceType" data-redraw="1"><option value="day" ${p.priceType!=='flat'?'selected':''}>Ανά ημέρα</option><option value="flat" ${p.priceType==='flat'?'selected':''}>Σταθερή (ανά ενοικίαση)</option></select></label>
-      ${!isB?`<label class="f">Αξία αντικατάστασης €<input type="number" min="0" step="0.01" data-pm="replacement" value="${esc(p.replacement)}"></label>`:''}
+      <label class="f pr">Τιμή (€, χωρίς ΦΠΑ)<input type="number" min="0" step="0.01" data-pm="price" value="${esc(p.price)}" placeholder="${isB?'Κενό = άθροισμα':''}"></label>
+      <label class="f pr">Χρέωση<select data-pm="priceType" data-redraw="1"><option value="day" ${p.priceType!=='flat'?'selected':''}>Ανά ημέρα</option><option value="flat" ${p.priceType==='flat'?'selected':''}>Σταθερή (ανά ενοικίαση)</option></select></label>
+      ${!isB?`<label class="f pr">Αξία αντικατάστασης €<input type="number" min="0" step="0.01" data-pm="replacement" value="${esc(p.replacement)}"></label>`:''}
     </div>
-    ${p.priceType!=='flat'?`<div class="card" style="padding:12px 14px;background:#fafbfc"><div class="small b" style="margin-bottom:8px">Χρέωση επόμενων ημερών</div>
+    ${p.priceType!=='flat'?`<div class="card pr" style="padding:12px 14px;background:#fafbfc"><div class="small b" style="margin-bottom:8px">Χρέωση επόμενων ημερών</div>
       <div class="f3"><label class="f">Από τη 2η ημέρα και μετά<select data-pm="extraMode" data-redraw="1"><option value="same" ${!p.extraMode||p.extraMode==='same'?'selected':''}>Ίδια τιμή με την 1η</option><option value="amount" ${p.extraMode==='amount'?'selected':''}>Άλλη τιμή (€ / ημέρα)</option><option value="pct" ${p.extraMode==='pct'?'selected':''}>Ποσοστό της 1ης (%)</option></select></label>
       ${p.extraMode==='amount'||p.extraMode==='pct'?`<label class="f">${p.extraMode==='pct'?'% της τιμής 1ης ημέρας':'€ ανά επόμενη ημέρα'}<input type="number" min="0" step="0.01" data-pm="extraValue" data-redraw-change="1" value="${esc(p.extraValue??'')}" placeholder="${p.extraMode==='pct'?'π.χ. 50':'π.χ. 10'}"></label>`:'<div></div>'}
       <div class="small muted" style="align-self:end;padding-bottom:6px">${extraPreview(p)}</div></div></div>`:''}
