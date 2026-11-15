@@ -52,8 +52,8 @@ VIEWS.customer = id => {
   <div class="split"><div class="card p0"><div class="card-h"><h2>Παραγγελίες</h2></div>${orders.length?`<div class="tw"><table><thead><tr><th>Αρ.</th><th>Τίτλος</th><th>Περίοδος</th><th>Κατάσταση</th><th class="num">Σύνολο</th></tr></thead><tbody>${orders.map(o=>`<tr class="click" data-act="go" data-href="#order-${o.id}"><td><b>${esc(o.number)}</b></td><td>${esc(o.name||'')}</td><td style="white-space:nowrap">${fmtD(o.start)} → ${fmtD(o.end)}</td><td>${pill(o.status)}</td><td class="num">${money(orderTotals(o).total)}</td></tr>`).join('')}</tbody></table></div>`:'<div class="empty">Καμία παραγγελία ακόμη.</div>'}</div>
   <div class="card"><h2>Στοιχεία</h2><dl class="kv"><dt>Τηλέφωνο</dt><dd>${esc(c.phone||'—')}</dd><dt>Email</dt><dd>${esc(c.email||'—')}</dd><dt>Διεύθυνση</dt><dd>${esc([c.address,c.city].filter(Boolean).join(', ')||'—')}</dd><dt>ΑΦΜ</dt><dd>${esc(c.vat||'—')}</dd><dt>ΔΟΥ</dt><dd>${esc(c.doy||'—')}</dd></dl>${c.notes?`<hr><div class="small" style="white-space:pre-wrap">${esc(c.notes)}</div>`:''}</div></div>`;
 };
-function customerModal(id, onSaved){
-  const c=id?deepCopy(D.customers[id]):{id:null,name:'',company:'',vat:'',doy:'',email:'',phone:'',address:'',city:'',discount:'',notes:''};
+function customerModal(id, onSaved, prefill){
+  const c=id?deepCopy(D.customers[id]):{id:null,name:'',company:'',vat:'',doy:'',email:'',phone:'',address:'',city:'',discount:'',notes:'',...(prefill||{})};
   M={type:'cust', c, onSaved};
   const f=(k,l,t='text')=>`<label class="f">${l}<input type="${t}" data-cm="${k}" value="${esc(c[k])}" ${k==='name'?'autofocus':''}></label>`;
   openModal(`<div class="dlg-h"><h2>${id?'Επεξεργασία':'Νέος'} πελάτης</h2><button class="icon" data-act="modal-close">✕</button></div><div class="dlg-b">

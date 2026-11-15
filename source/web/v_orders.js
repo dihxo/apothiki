@@ -200,7 +200,7 @@ VIEWS.order = id => {
       <div class="otop">
         <div class="card"><h2>Πελάτης</h2>
           ${cust?`<div class="row" style="margin-bottom:12px;flex-wrap:nowrap"><span class="cav" style="background:${avColor(cn)};width:38px;height:38px;font-size:13px">${esc(initials(cn))}</span><div class="grow"><a class="lk" href="#customer-${cust.id}" style="font-size:15px">${esc(cn)}</a><div class="xs muted">${esc([cust.company?cust.name:'',cust.phone,cust.email].filter(Boolean).join(' · '))}</div>${num(cust.discount)?`<div class="xs b" style="color:var(--green)">Έκπτωση πελάτη ${num(cust.discount)}%</div>`:''}</div></div>`:''}
-          <div class="row" style="flex-wrap:nowrap"><select data-o="customerId" ${ro?'disabled':''} style="flex:1"><option value="">— Επίλεξε πελάτη —</option>${custOpts}</select>${ro?'':'<button class="btn sm" data-act="o-new-cust" title="Νέος πελάτης">+ Νέος</button>'}</div>
+          ${ro?'':`<div class="row" style="flex-wrap:nowrap"><div class="cpick"><span class="cpick-i">${svg('search')}</span><input type="text" id="custQ" placeholder="${cust?'Αλλαγή πελάτη — ':''}Γράψε όνομα, εταιρεία, τηλέφωνο ή ΑΦΜ…" autocomplete="off" autocapitalize="off" spellcheck="false"><div class="cpick-dd" id="custDD"></div></div>${cust?'<button class="btn sm ghost" data-act="o-cust-clear" title="Αφαίρεση πελάτη">✕</button>':''}<button class="btn sm" data-act="o-new-cust" title="Νέος πελάτης">+ Νέος</button></div>`}
           <div style="margin-top:12px" class="grid"><label class="f">Τίτλος / εκδήλωση<input type="text" data-o="name" value="${esc(d.name)}" placeholder="π.χ. Συνέδριο" ${ro?'disabled':''}></label><label class="f">Χώρος / διεύθυνση παράδοσης<input type="text" data-o="venue" value="${esc(d.venue)}" ${ro?'disabled':''}></label></div>
         </div>
         <div class="card"><h2>Παραλαβή & επιστροφή</h2>
@@ -340,6 +340,48 @@ ACT['o-cam-add']=()=>openCamera(code=>{ const f=findCode(code); if(f&&f.product)
 ACT['o-custom']=()=>{ UI.draft.lines.push({id:uid('ln'), pid:'', name:'', qty:1, price:0, priceType:'flat', discount:0}); dirty(); };
 ACT['o-line-del']=el=>{ UI.draft.lines.splice(+el.dataset.i,1); dirty(); };
 ACT['o-new-cust']=()=>customerModal(null, id=>{ UI.draft.customerId=id; dirty(); });
+/* ---------- αναζήτηση πελάτη (combobox) ---------- */
+function normQ(s){ return String(s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/ς/g,'σ'); }
+function latQ(s){ return [...normQ(s)].map(c=>GR2LAT[c]??c).join('').toLowerCase(); }
+function custSearch(q){
+  const cnt={}; for(const o of Object.values(D.orders)) if(o.customerId) cnt[o.customerId]=(cnt[o.customerId]||0)+1;
+  const last={}; for(const o of Object.values(D.orders)) if(o.customerId&&(o.start||'')>(last[o.customerId]||'')) last[o.customerId]=o.start||'';
+  const all=Object.values(D.customers);
+  if(!q.trim()) return {list:sortBy(all,c=>last[c.id]||'').reverse().slice(0,6), cnt, recent:true};
+  const terms=normQ(q).split(/\s+/).filter(Boolean), digits=q.replace(/\D/g,'');
+  const scored=[];
+  for(const c of all){ const hay=normQ([c.company,c.name,c.email,c.city,c.vat].join(' ')), hayL=latQ([c.company,c.name].join(' ')); const ph=String(c.phone||'').replace(/\D/g,'');
+    let sc=0, ok=true;
+    for(const t of terms){ const tl=latQ(t); const i=hay.indexOf(t), j=hayL.indexOf(tl);
+      if(i<0&&j<0&&!(digits.length>=3&&/^\d+$/.test(t)&&(ph.includes(t)||String(c.vat||'').includes(t)))){ ok=false; break; }
+      sc += (i===0||j===0)?3 : ((i>0&&/\s|\W/.test(hay[i-1]))||(j>0&&/\s|\W/.test(hayL[j-1])))?2 : 1; }
+    if(ok) scored.push([c, sc+Math.min(2,(cnt[c.id]||0)/5)]); }
+  return {list:scored.sort((a,b)=>b[1]-a[1]).slice(0,8).map(x=>x[0]), cnt};
+}
+let CP={i:0, items:[]};
+function drawCustDD(){
+  const inp=$('#custQ'), dd=$('#custDD'); if(!inp||!dd) return; const q=inp.value; const {list,cnt,recent}=custSearch(q);
+  CP.items=list.map(c=>({type:'c',id:c.id})); if(q.trim().length>=1) CP.items.push({type:'new'}); if(CP.i>=CP.items.length) CP.i=0;
+  dd.innerHTML=(recent&&list.length?'<div class="cpick-h">Πρόσφατοι πελάτες</div>':'')+list.map((c,i)=>{ const nm=c.company||c.name||'—';
+    return `<button type="button" class="cpick-it${i===CP.i?' on':''}" data-act="o-cust-pick" data-id="${c.id}"><span class="cav" style="background:${avColor(nm)};width:30px;height:30px;font-size:11px;margin:0;flex:none">${esc(initials(nm))}</span><span class="grow" style="min-width:0"><b>${esc(nm)}</b>${c.company&&c.name?` <span class="muted">· ${esc(c.name)}</span>`:''}<small>${esc([c.phone,c.email,c.vat?'ΑΦΜ '+c.vat:''].filter(Boolean).join(' · '))}</small></span><span class="xs faint">${cnt[c.id]?cnt[c.id]+' παρ.':''}</span></button>`; }).join('')
+    +(q.trim()&&!list.length?'<div class="cpick-h">Δεν βρέθηκε πελάτης</div>':'')
+    +(q.trim()?`<button type="button" class="cpick-it new${CP.i===list.length?' on':''}" data-act="o-cust-newq">＋ Νέος πελάτης «${esc(q.trim())}»</button>`:'');
+  dd.classList.toggle('on', CP.items.length>0);
+}
+function pickCustomer(id){ const d=UI.draft; if(!d) return; d.customerId=id; const c=D.customers[id]; if(c&&num(c.discount)&&!num(d.discount)) d.discount=num(c.discount); dirty(); }
+function newCustFromQ(q){ q=(q||'').trim(); const pre={}; if(/^[+\d\s()-]{6,}$/.test(q)) pre.phone=q; else if(/@/.test(q)) pre.email=q; else if(/^\d{9}$/.test(q)) pre.vat=q; else pre.name=q;
+  customerModal(null, id=>pickCustomer(id), pre); }
+ACT['o-cust-pick']=el=>pickCustomer(el.dataset.id);
+ACT['o-cust-newq']=()=>newCustFromQ($('#custQ')?.value);
+ACT['o-cust-clear']=()=>{ UI.draft.customerId=''; dirty(); };
+ON_INPUT.unshift(el=>{ if(el.id==='custQ'){ CP.i=0; drawCustDD(); return true; } return false; });
+document.addEventListener('focusin', e=>{ if(e.target.id==='custQ'){ CP.i=0; drawCustDD(); } });
+document.addEventListener('focusout', e=>{ if(e.target.id==='custQ') setTimeout(()=>{ const dd=$('#custDD'); if(dd&&!dd.contains(document.activeElement)) dd.classList.remove('on'); }, 180); });
+document.addEventListener('keydown', e=>{ if(e.target.id!=='custQ') return; const n=CP.items.length;
+  if(e.key==='ArrowDown'&&n){ e.preventDefault(); CP.i=(CP.i+1)%n; drawCustDD(); }
+  else if(e.key==='ArrowUp'&&n){ e.preventDefault(); CP.i=(CP.i-1+n)%n; drawCustDD(); }
+  else if(e.key==='Enter'){ e.preventDefault(); const it=CP.items[CP.i]; if(!it) return; if(it.type==='c') pickCustomer(it.id); else newCustFromQ(e.target.value); }
+  else if(e.key==='Escape'){ $('#custDD')?.classList.remove('on'); e.target.blur(); } });
 
 /* ---------- status flow ---------- */
 ACT['o-status']=async el=>{
