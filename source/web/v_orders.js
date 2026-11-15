@@ -117,7 +117,38 @@ async function createOrder(base){
   const doc=Object.assign({number:pre+String(n).padStart(4,'0'), name:'', customerId:'', venue:'', start:t, end:addDays(t,1), startTime:'10:00', endTime:'10:00', status:'concept', lines:[], discount:0, deposit:0, notes:'', internalNotes:'', picked:{units:[],bulk:{}}, returned:{units:[],bulk:{}}}, base||{});
   if(await put('orders', id, doc, 'Δημιουργήθηκε η παραγγελία '+doc.number, true)) location.hash='order-'+id;
 }
-ACT['new-order']=()=>createOrder();
+ACT['new-order']=()=>{ if(!can('staff')) return toast('Δεν έχεις δικαίωμα.', true); newOrderModal(); };
+/* ---------- νέα παραγγελία: πρώτα αναζήτηση πελάτη ---------- */
+let NO={i:0, items:[]};
+function newOrderModal(){
+  M={type:'newOrder'};
+  openModal(`<div class="dlg-h"><h2>Νέα παραγγελία — για ποιον πελάτη;</h2><button class="icon" data-act="modal-close">✕</button></div>
+  <div class="dlg-b" style="gap:10px">
+    <div class="cpick"><span class="cpick-i">${svg('search')}</span><input type="text" id="custQ2" placeholder="Γράψε όνομα, εταιρεία, τηλέφωνο ή ΑΦΜ…" autocomplete="off" autocapitalize="off" spellcheck="false" autofocus></div>
+    <div id="custL2" class="nolist"></div>
+  </div>
+  <div class="dlg-f"><button class="btn" data-act="no-skip" style="margin-right:auto">Χωρίς πελάτη (αργότερα)</button><button class="btn" data-act="modal-close">Άκυρο</button></div>`, 'sm');
+  NO.i=0; drawNoList(); setTimeout(()=>$('#custQ2')?.focus(), 60);
+}
+function drawNoList(){
+  const inp=$('#custQ2'), box=$('#custL2'); if(!inp||!box) return; const q=inp.value; const {list,cnt,recent}=custSearch(q);
+  NO.items=list.map(c=>({type:'c',id:c.id})); if(q.trim()) NO.items.push({type:'new'}); if(NO.i>=NO.items.length) NO.i=0;
+  box.innerHTML=(recent&&list.length?'<div class="cpick-h">Πρόσφατοι πελάτες</div>':'')+list.map((c,i)=>{ const nm=c.company||c.name||'—';
+    return `<button type="button" class="cpick-it${i===NO.i?' on':''}" data-act="no-pick" data-id="${c.id}"><span class="cav" style="background:${avColor(nm)};width:34px;height:34px;font-size:12px;margin:0;flex:none">${esc(initials(nm))}</span><span class="grow" style="min-width:0"><b>${esc(nm)}</b>${c.company&&c.name?` <span class="muted">· ${esc(c.name)}</span>`:''}<small>${esc([c.phone,c.email,c.vat?'ΑΦΜ '+c.vat:''].filter(Boolean).join(' · '))}</small></span><span class="xs faint">${cnt[c.id]?cnt[c.id]+' παρ.':''}</span></button>`; }).join('')
+    +(q.trim()&&!list.length?'<div class="cpick-h">Δεν βρέθηκε πελάτης</div>':'')
+    +(q.trim()?`<button type="button" class="cpick-it new${NO.i===list.length?' on':''}" data-act="no-new">＋ Νέος πελάτης «${esc(q.trim())}»</button>`:(!list.length?'<div class="xs muted" style="padding:8px">Δεν υπάρχουν πελάτες ακόμη — γράψε όνομα για να προσθέσεις.</div>':''));
+}
+function noStart(id){ const c=D.customers[id]; closeModal(); createOrder(id?{customerId:id, discount:c&&num(c.discount)?num(c.discount):0}:undefined); }
+function noNew(q){ q=(q||'').trim(); const pre={}; if(/^[+\d\s()-]{6,}$/.test(q)) pre.phone=q; else if(/@/.test(q)) pre.email=q; else if(/^\d{9}$/.test(q)) pre.vat=q; else pre.name=q;
+  customerModal(null, id=>noStart(id), pre); }
+ACT['no-pick']=el=>noStart(el.dataset.id);
+ACT['no-new']=()=>noNew($('#custQ2')?.value);
+ACT['no-skip']=()=>noStart('');
+ON_INPUT.unshift(el=>{ if(el.id==='custQ2'){ NO.i=0; drawNoList(); return true; } return false; });
+document.addEventListener('keydown', e=>{ if(e.target.id!=='custQ2') return; const n=NO.items.length;
+  if(e.key==='ArrowDown'&&n){ e.preventDefault(); NO.i=(NO.i+1)%n; drawNoList(); }
+  else if(e.key==='ArrowUp'&&n){ e.preventDefault(); NO.i=(NO.i-1+n)%n; drawNoList(); }
+  else if(e.key==='Enter'){ e.preventDefault(); e.stopPropagation(); const it=NO.items[NO.i]; if(!it) return; it.type==='c'?noStart(it.id):noNew(e.target.value); } }, true);
 
 /* ---------- order draft ---------- */
 const autosave = debounce(()=>saveOrder(), 900);
