@@ -556,3 +556,5 @@ body.docopen{overflow:hidden}
 .mrow{min-width:0;max-width:100%}
 
 body.noprice .pr{display:none!important}
+.addcnt{padding:6px 12px;border-bottom:1px solid var(--line);position:sticky;top:0;background:#fff;z-index:1}
+.addmore{padding:10px 12px;text-align:center}

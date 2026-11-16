@@ -350,15 +350,20 @@ ON_CHANGE.push((el)=>{
     l[f] = f==='priceType' ? el.value : (f==='qty'?Math.max(0,Math.round(num(el.value))):(f==='extraPrice'&&el.value===''?'':num(el.value))); dirty(); return true; }
   return false;
 });
+let ADD_LIST=[], ADD_SHOWN=0, ADD_NEED={};
+function addRowHTML(p){ const d=UI.draft; const need=ADD_NEED; return (p=>{ const fr=freeUnits(p.id,d.start,d.end,d.id).free - (p.kind!=='bundle'?(need[p.id]||0):0);
+    return `<a href="#" data-act="o-add" data-id="${p.id}"><span class="pcell">${prodImg(p,32)}<span><b>${esc(p.name)}</b> ${p.kind==='bundle'?'<span class="tag">Bundle</span>':''}<br><span class="xs muted">${esc(p.sku)} · ${esc(catPath(p.cat))} · ${priceLabel(p)}</span></span></span><span class="avb ${avCls(fr)}" title="Διαθέσιμα">${fr}</span></a>`; })(p); }
+function addMore(){ const box=$('#oAddRes'); if(!box) return; const next=ADD_LIST.slice(ADD_SHOWN, ADD_SHOWN+50); if(!next.length) return; ADD_SHOWN+=next.length;
+  box.querySelector('.addmore')?.remove(); box.insertAdjacentHTML('beforeend', next.map(addRowHTML).join('')+(ADD_SHOWN<ADD_LIST.length?`<div class="addmore xs muted">Κύλισε για περισσότερα (${ADD_LIST.length-ADD_SHOWN})…</div>`:'')); }
 function drawAddResults(q){
-  const box=$('#oAddRes'); if(!box) return; q=(q||'').trim().toLowerCase();
+  const box=$('#oAddRes'); if(!box) return; q=normQ((q||'').trim());
   const d=UI.draft;
   let list=prodsSorted(Object.values(D.products).filter(p=>!p.archived));
-  if(q) list=list.filter(p=>[p.name,p.sku,catPath(p.cat)].some(v=>(v||'').toLowerCase().includes(q)));
-  list=list.slice(0,30);
-  const need=expandLines(d.lines);
-  box.innerHTML = list.map(p=>{ const fr=freeUnits(p.id,d.start,d.end,d.id).free - (p.kind!=='bundle'?(need[p.id]||0):0);
-    return `<a href="#" data-act="o-add" data-id="${p.id}"><span class="pcell">${prodImg(p,32)}<span><b>${esc(p.name)}</b> ${p.kind==='bundle'?'<span class="tag">Bundle</span>':''}<br><span class="xs muted">${esc(p.sku)} · ${esc(catPath(p.cat))} · ${priceLabel(p)}</span></span></span><span class="avb ${avCls(fr)}" title="Διαθέσιμα">${fr}</span></a>`; }).join('') || '<div class="empty" style="padding:16px">Κανένα προϊόν</div>';
+  if(q){ const terms=q.split(/\s+/).filter(Boolean); list=list.filter(p=>{ const h=normQ([p.name,p.sku,catPath(p.cat),p.location].join(' ')), hl=latQ([p.name,p.sku].join(' ')); return terms.every(t=>h.includes(t)||hl.includes(latQ(t))); }); }
+  ADD_NEED=expandLines(d.lines); ADD_LIST=list; ADD_SHOWN=0;
+  box.innerHTML=`<div class="addcnt xs muted">${list.length} ${list.length===1?'προϊόν':'προϊόντα'}${q?' βρέθηκαν':''}</div>`+(list.length?'':'<div class="empty" style="padding:16px">Κανένα προϊόν</div>');
+  addMore();
+  if(!box._scrollBound){ box._scrollBound=true; box.addEventListener('scroll', ()=>{ if(box.scrollTop+box.clientHeight>box.scrollHeight-150) addMore(); }, {passive:true}); }
   box.style.display='block';
 }
 document.addEventListener('focusin', e=>{ if(e.target.id==='oAdd') drawAddResults(e.target.value); });
