@@ -13,7 +13,9 @@ VIEWS.products = () => {
   if(q) list=list.filter(p=>[p.name,p.sku,p.location,p.supplier,p.notes,catPath(p.cat)].some(v=>(v||'').toLowerCase().includes(q)));
   list=prodsSorted(list);
   const counts={}; for(const p of Object.values(D.products)){ if(p.archived) continue; let c=D.categories[p.cat], g=0; while(c&&g++<10){ counts[c.id]=(counts[c.id]||0)+1; c=D.categories[c.parent]; } }
-  const tree=(parent,depth)=>depth>9?"":sortBy(Object.values(D.categories).filter(c=>(c.parent||'')===(parent||'')),c=>c.name).map(c=>`<a class="${UI.prodCat===c.id?'on':''}${depth?'':' main'}" data-act="tab" data-k="prodCat" data-v="${c.id}" style="padding-left:${9+depth*14}px">${esc(c.name)}<span>${counts[c.id]||0}</span></a>`+tree(c.id,depth+1)).join('');
+  UI.catOpen=UI.catOpen||new Set();
+  const tree=(parent,depth)=>depth>9?"":sortBy(Object.values(D.categories).filter(c=>(c.parent||'')===(parent||'')),c=>c.name).map(c=>{ const kids=Object.values(D.categories).some(x=>x.parent===c.id); const open=UI.catOpen.has(c.id);
+    return `<a class="${UI.prodCat===c.id?'on':''}${depth?'':' main'}" data-act="cat-tog" data-v="${c.id}" style="padding-left:${9+depth*14}px">${kids?`<i class="caret${open?' open':''}">›</i>`:`<i class="caret"></i>`}<em class="tn">${esc(c.name)}</em><span>${depth?(counts[c.id]||0):catCount(c.id)}</span></a>`+(kids&&open?tree(c.id,depth+1):''); }).join('');
   const noCat=Object.values(D.products).filter(p=>!p.archived&&(!p.cat||!D.categories[p.cat])).length;
   const allSel=list.length&&list.every(p=>UI.prodSel.has(p.id));
   const rows=list.map(p=>{ const st=stockOf(p.id), fr=freeUnits(p.id,t,t).free; const mnt=Object.values(D.maintenance).filter(m=>m.productId===p.id&&m.status!=='done').length;
@@ -355,3 +357,8 @@ document.addEventListener('keydown', e=>{ const el=e.target; if(!el.dataset||!el
 document.addEventListener('focusin', e=>{ const el=e.target; if(el.dataset&&el.dataset.qe){ el._jf=true; try{ el.select(); }catch(_){} } });
 document.addEventListener('mouseup', e=>{ const el=e.target; if(el.dataset&&el.dataset.qe&&el._jf){ e.preventDefault(); el._jf=false; try{ el.select(); }catch(_){} } });
 document.addEventListener('touchend', e=>{ const el=e.target; if(el.dataset&&el.dataset.qe&&el._jf){ el._jf=false; setTimeout(()=>{ try{ el.select(); }catch(_){} },30); } }, {passive:true});
+
+/* δέντρο κατηγοριών: κλικ σε κατηγορία = φιλτράρισμα + άνοιγμα/κλείσιμο υποκατηγοριών */
+ACT['cat-tog']=el=>{ const id=el.dataset.v; const kids=Object.values(D.categories).some(x=>x.parent===id);
+  if(kids){ if(UI.catOpen.has(id)) UI.catOpen.delete(id); else UI.catOpen.add(id); }
+  UI.prodCat=id; UI.mProdN=60; render(); };

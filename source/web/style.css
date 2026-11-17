@@ -565,3 +565,8 @@ body.noprice .pr{display:none!important}
 .qedit.saving{opacity:.5}.qedit.saved{background:#e8f8ef;border-color:#9fdcb9}
 .qprice{display:inline-flex;align-items:center;gap:4px}
 .qedit::-webkit-inner-spin-button{opacity:.4}
+
+.tree a .caret{display:inline-block;width:12px;margin-right:4px;font-style:normal;color:var(--faint);transition:transform .15s;transform:rotate(0)}
+.tree a .caret.open{transform:rotate(90deg);color:var(--ink)}
+.tree a .tn{flex:1;min-width:0;font-style:normal;text-align:left}
+.tree a[data-act=cat-tog]{justify-content:flex-start}
