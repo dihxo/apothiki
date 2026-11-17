@@ -14,7 +14,9 @@ import (
 	"net/http"
 	"net/url"
 	"regexp"
+	"strconv"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 )
@@ -155,28 +157,194 @@ func searchDDG(ctx context.Context, q string) ([]imgHit, error) {
 	return out, nil
 }
 
+// ---- επιπλέον μηχανές (fallback) ----
+
+var bingCookie = "SRCHHPGUSR=SRCHLANG=en&ADLT=OFF; _EDGE_CD=m=en-us&u=en-us; BCP=AD=1&AL=1&SM=1; MUIDB=1"
+
+func searchBingAsync(ctx context.Context, q string) ([]imgHit, error) {
+	page, err := getText(ctx, "https://www.bing.com/images/async?first=0&count=35&mmasync=1&mkt=en-US&setlang=en&cc=US&q="+url.QueryEscape(q),
+		map[string]string{"Accept": "text/html", "Cookie": bingCookie, "Referer": "https://www.bing.com/images/search?q=" + url.QueryEscape(q)}, 4<<20)
+	if err != nil {
+		return nil, err
+	}
+	h := parseBing(page)
+	if len(h) == 0 {
+		h = genericThumbs(page)
+	}
+	if len(h) == 0 {
+		return nil, errors.New("0 results (" + snippet(page) + ")")
+	}
+	return h, nil
+}
+
+func searchBingPage(ctx context.Context, q string) ([]imgHit, error) {
+	page, err := getText(ctx, "https://www.bing.com/images/search?form=HDRSC2&first=1&mkt=en-US&setlang=en&cc=US&q="+url.QueryEscape(q),
+		map[string]string{"Accept": "text/html", "Cookie": bingCookie}, 4<<20)
+	if err != nil {
+		return nil, err
+	}
+	h := parseBing(page)
+	if len(h) == 0 {
+		h = genericThumbs(page)
+	}
+	if len(h) == 0 {
+		return nil, errors.New("0 results (" + snippet(page) + ")")
+	}
+	return h, nil
+}
+
+var braveUrlRe = regexp.MustCompile(`properties:\{url:"(https?:[^"]+)"`)
+
+func searchBrave(ctx context.Context, q string) ([]imgHit, error) {
+	page, err := getText(ctx, "https://search.brave.com/images?q="+url.QueryEscape(q), map[string]string{"Accept": "text/html"}, 4<<20)
+	if err != nil {
+		return nil, err
+	}
+	th := genericThumbs(page)
+	full := braveUrlRe.FindAllStringSubmatch(page, 60)
+	for i := range th {
+		if i < len(full) {
+			if u, e := strconv.Unquote(`"` + full[i][1] + `"`); e == nil {
+				th[i].Image = u
+			}
+		}
+	}
+	if len(th) == 0 {
+		return nil, errors.New("0 results (" + snippet(page) + ")")
+	}
+	return th, nil
+}
+
+func searchGoogle(ctx context.Context, q string) ([]imgHit, error) {
+	page, err := getText(ctx, "https://www.google.com/search?tbm=isch&hl=en&gl=us&q="+url.QueryEscape(q),
+		map[string]string{"Accept": "text/html", "Cookie": "CONSENT=YES+cb; SOCS=CAESEwgDEgk0ODE3Nzk3MjQaAmVuIAEaBgiA_LyaBg"}, 4<<20)
+	if err != nil {
+		return nil, err
+	}
+	h := genericThumbs(page)
+	if len(h) == 0 {
+		return nil, errors.New("0 results (" + snippet(page) + ")")
+	}
+	return h, nil
+}
+
+var thumbRe = regexp.MustCompile(`https://(?:tse\d\.mm\.bing\.net/th[^"'\s<>\\]*|th\.bing\.com/th[^"'\s<>\\]*|encrypted-tbn\d\.gstatic\.com/images\?q=tbn:[A-Za-z0-9_\-:]+|imgs\.search\.brave\.com/[A-Za-z0-9_\-/=.:]+)`)
+
+// genericThumbs μαζεύει μικρογραφίες γνωστών CDN από οποιαδήποτε σελίδα αποτελεσμάτων.
+func genericThumbs(page string) []imgHit {
+	var out []imgHit
+	seen := map[string]bool{}
+	for _, m := range thumbRe.FindAllString(page, 80) {
+		u := html.UnescapeString(strings.ReplaceAll(m, `\u0026`, "&"))
+		if seen[u] || strings.Contains(u, "favicon") {
+			continue
+		}
+		seen[u] = true
+		out = append(out, imgHit{Image: u, Thumb: u})
+	}
+	return out
+}
+
+func snippet(s string) string {
+	s = strings.Join(strings.Fields(s), " ")
+	if len(s) > 80 {
+		s = s[:80]
+	}
+	return s
+}
+
 func hImgSearch(w http.ResponseWriter, r *http.Request, u Doc) {
 	q := strings.TrimSpace(r.URL.Query().Get("q"))
 	if len(q) < 2 || len(q) > 200 {
 		fail(w, 400, "Δώσε όνομα προϊόντος")
 		return
 	}
-	ctx, cancel := context.WithTimeout(r.Context(), 20*time.Second)
+	ctx, cancel := context.WithTimeout(r.Context(), 18*time.Second)
 	defer cancel()
-	hits, err := searchBing(ctx, q)
-	if len(hits) == 0 {
-		var err2 error
-		hits, err2 = searchDDG(ctx, q)
-		if err2 != nil && err == nil {
-			err = err2
+	type eng struct {
+		name string
+		fn   func(context.Context, string) ([]imgHit, error)
+	}
+	engines := []eng{{"bing", searchBingPage}, {"bing2", searchBingAsync}, {"ddg", searchDDG}, {"brave", searchBrave}, {"google", searchGoogle}}
+	type res struct {
+		hits []imgHit
+		err  error
+		done bool
+	}
+	results := make([]res, len(engines))
+	var wg sync.WaitGroup
+	var rmu sync.Mutex
+	got := make(chan struct{}, len(engines))
+	for i, e := range engines {
+		wg.Add(1)
+		go func(i int, e eng) {
+			defer wg.Done()
+			h, err := e.fn(ctx, q)
+			rmu.Lock()
+			results[i] = res{h, err, true}
+			rmu.Unlock()
+			got <- struct{}{}
+		}(i, e)
+	}
+	// Περιμένουμε με προτεραιότητα: παίρνουμε την πρώτη (κατά σειρά) μηχανή με αποτελέσματα.
+	pick := func() ([]imgHit, bool) {
+		rmu.Lock()
+		defer rmu.Unlock()
+		for _, x := range results {
+			if !x.done {
+				return nil, false
+			}
+			if len(x.hits) > 0 {
+				return x.hits, true
+			}
+		}
+		return nil, true
+	}
+	var hits []imgHit
+	deadline := time.After(6 * time.Second)
+wait:
+	for n := 0; n < len(engines); {
+		select {
+		case <-got:
+			n++
+			if h, ok := pick(); ok {
+				hits = h
+				break wait
+			}
+		case <-deadline:
+			// μετά από 6" δεχόμαστε όποια μηχανή έχει ήδη αποτελέσματα
+			rmu.Lock()
+			for _, x := range results {
+				if len(x.hits) > 0 {
+					hits = x.hits
+					break
+				}
+			}
+			rmu.Unlock()
+			if hits != nil {
+				break wait
+			}
+			deadline = nil
+		case <-ctx.Done():
+			break wait
 		}
 	}
-	if len(hits) == 0 {
-		msg := "Δεν βρέθηκαν φωτογραφίες"
-		if err != nil {
-			log.Printf("imgsearch %q: %v", q, err)
+	diag := map[string]string{}
+	rmu.Lock()
+	for i, x := range results {
+		switch {
+		case !x.done:
+			diag[engines[i].name] = "pending"
+		case x.err != nil:
+			diag[engines[i].name] = x.err.Error()
+		default:
+			diag[engines[i].name] = strconv.Itoa(len(x.hits))
 		}
-		writeJSON(w, 200, map[string]any{"results": []imgHit{}, "error": msg})
+	}
+	rmu.Unlock()
+	if len(hits) == 0 {
+		log.Printf("imgsearch %q: %v", q, diag)
+		writeJSON(w, 200, map[string]any{"results": []imgHit{}, "error": "Δεν βρέθηκαν φωτογραφίες", "diag": diag})
 		return
 	}
 	seen := map[string]bool{}
@@ -187,11 +355,11 @@ func hImgSearch(w http.ResponseWriter, r *http.Request, u Doc) {
 		}
 		seen[h.Image] = true
 		out = append(out, h)
-		if len(out) >= 10 {
+		if len(out) >= 15 {
 			break
 		}
 	}
-	writeJSON(w, 200, map[string]any{"results": out})
+	writeJSON(w, 200, map[string]any{"results": out, "diag": diag})
 }
 
 func hImgFetch(w http.ResponseWriter, r *http.Request, u Doc) {
@@ -213,13 +381,20 @@ func hImgFetch(w http.ResponseWriter, r *http.Request, u Doc) {
 	}
 	defer res.Body.Close()
 	ct := res.Header.Get("Content-Type")
-	if res.StatusCode != 200 || !strings.HasPrefix(ct, "image/") || strings.Contains(ct, "svg") {
-		fail(w, 502, "Η διεύθυνση δεν είναι εικόνα")
+	if res.StatusCode != 200 {
+		fail(w, 502, "Η εικόνα δεν κατέβηκε")
 		return
 	}
 	b, err := io.ReadAll(io.LimitReader(res.Body, 12<<20+1))
 	if err != nil || len(b) > 12<<20 {
 		fail(w, 502, "Η εικόνα είναι πολύ μεγάλη")
+		return
+	}
+	if !strings.HasPrefix(ct, "image/") {
+		ct = http.DetectContentType(b)
+	}
+	if !strings.HasPrefix(ct, "image/") || strings.Contains(ct, "svg") {
+		fail(w, 502, "Η διεύθυνση δεν είναι εικόνα")
 		return
 	}
 	w.Header().Set("Content-Type", ct)
