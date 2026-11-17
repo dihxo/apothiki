@@ -196,7 +196,7 @@ VIEWS.order = id => {
     let avail='<span class="faint">—</span>', problem='', sub='';
     if(p){
       const fr=freeUnits(l.pid,d.start,d.end,d.id); const cls=avCls(fr.free, num(l.qty));
-      avail=`<span class="avpill ${cls}" title="Διαθέσιμα για ${fmtD(d.start)}–${fmtD(d.end)} πέρα από αυτή την παραγγελία">${cls==='bad'?'⚠':'✓'} ${fr.free} διαθ.</span>${fr.freeOpt<fr.free?`<div class="xs" style="color:var(--purple)">${fr.freeOpt} με options</div>`:''}`;
+      avail=`<span class="avpill ${cls}" title="Μένουν ${fr.free-d.lines.filter(x=>x.pid===l.pid).reduce((a,x)=>a+num(x.qty),0)} από ${fr.free} διαθέσιμα για ${fmtD(d.start)}–${fmtD(d.end)}">${cls==='bad'?'⚠':'✓'} ${fr.free-d.lines.filter(x=>x.pid===l.pid).reduce((a,x)=>a+num(x.qty),0)}/${fr.free} διαθ.</span>${fr.freeOpt<fr.free?`<div class="xs" style="color:var(--purple)">${fr.freeOpt} με options</div>`:''}`;
       if(p.kind==='bundle'){ const bad=(p.components||[]).filter(c=>shMap[c.pid]); if(bad.length) problem=`<div class="xs" style="color:var(--red)">Λείπουν: ${bad.map(c=>`${esc(prodName(c.pid))} −${shMap[c.pid].missing}`).join(', ')}</div>`;
         sub=`<div class="xs muted">${(p.components||[]).map(c=>`${esc(prodName(c.pid))} ×${num(c.qty)*num(l.qty)}`).join(' · ')}</div>`; }
       else if(shMap[l.pid]) problem=`<div class="xs" style="color:var(--red)">Λείπουν ${shMap[l.pid].missing} τεμ. στις ημερομηνίες</div>`;
