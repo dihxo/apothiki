@@ -1195,6 +1195,7 @@ func main() {
 	mux.HandleFunc("POST /api/batch", need(2, hBatch))
 	mux.HandleFunc("GET /api/imgsearch", need(2, hImgSearch))
 	mux.HandleFunc("GET /api/imgfetch", need(2, hImgFetch))
+	mux.HandleFunc("GET /api/imgdiag", hImgDiag)
 	mux.HandleFunc("POST /api/next", need(2, hNext))
 	mux.HandleFunc("POST /api/password", need(1, hPassword))
 	mux.HandleFunc("POST /api/users/save", need(3, hUserSave))

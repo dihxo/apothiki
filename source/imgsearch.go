@@ -7,6 +7,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"html"
 	"io"
 	"log"
@@ -400,4 +401,49 @@ func hImgFetch(w http.ResponseWriter, r *http.Request, u Doc) {
 	w.Header().Set("Content-Type", ct)
 	w.Header().Set("Cache-Control", "no-store")
 	w.Write(b)
+}
+
+// Διαγνωστικό χωρίς σύνδεση: σταθερή αναζήτηση, αποτέλεσμα κρυφό για 2 λεπτά.
+var diagMu sync.Mutex
+var diagAt time.Time
+var diagOut map[string]any
+
+func hImgDiag(w http.ResponseWriter, r *http.Request) {
+	diagMu.Lock()
+	defer diagMu.Unlock()
+	if diagOut != nil && time.Since(diagAt) < 2*time.Minute {
+		writeJSON(w, 200, diagOut)
+		return
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), 20*time.Second)
+	defer cancel()
+	q := "Shure SM58 microphone"
+	out := map[string]any{}
+	type eng struct {
+		name string
+		fn   func(context.Context, string) ([]imgHit, error)
+	}
+	var wg sync.WaitGroup
+	var m sync.Mutex
+	for _, e := range []eng{{"bing", searchBingPage}, {"bing2", searchBingAsync}, {"ddg", searchDDG}, {"brave", searchBrave}, {"google", searchGoogle}} {
+		wg.Add(1)
+		go func(e eng) {
+			defer wg.Done()
+			t := time.Now()
+			h, err := e.fn(ctx, q)
+			s := fmt.Sprintf("%d hits", len(h))
+			if err != nil {
+				s = "ERR " + err.Error()
+			}
+			if len(h) > 0 {
+				s += " " + h[0].Thumb
+			}
+			m.Lock()
+			out[e.name] = fmt.Sprintf("%s (%dms)", s, time.Since(t).Milliseconds())
+			m.Unlock()
+		}(e)
+	}
+	wg.Wait()
+	diagOut, diagAt = out, time.Now()
+	writeJSON(w, 200, out)
 }
