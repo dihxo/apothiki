@@ -443,6 +443,46 @@ func hImgDiag(w http.ResponseWriter, r *http.Request) {
 			m.Unlock()
 		}(e)
 	}
+	probes := map[string]string{
+		"p_cnbing":    "https://cn.bing.com/images/async?first=0&count=35&mmasync=1&q=" + url.QueryEscape(q),
+		"p_cnbing2":   "https://cn.bing.com/images/search?q=" + url.QueryEscape(q),
+		"p_yahoo":     "https://images.search.yahoo.com/search/images?p=" + url.QueryEscape(q),
+		"p_yandex":    "https://yandex.com/images/search?text=" + url.QueryEscape(q),
+		"p_baidu":     "https://image.baidu.com/search/acjson?tn=resultjson_com&ipn=rj&word=" + url.QueryEscape(q) + "&queryWord=" + url.QueryEscape(q) + "&pn=0&rn=30",
+		"p_thomann":   "https://www.thomann.de/intl/search_dir.html?sw=" + url.QueryEscape("Shure SM58"),
+		"p_bax":       "https://www.bax-shop.co.uk/search?keyword=" + url.QueryEscape("Shure SM58"),
+		"p_musicst":   "https://www.musicstore.com/en_GB/GBP/search?SearchTerm=" + url.QueryEscape("Shure SM58"),
+		"p_openverse": "https://api.openverse.org/v1/images/?q=" + url.QueryEscape(q),
+		"p_commons":   "https://commons.wikimedia.org/w/api.php?action=query&format=json&generator=search&gsrnamespace=6&gsrlimit=10&prop=imageinfo&iiprop=url&gsrsearch=" + url.QueryEscape(q),
+		"p_startpage": "https://www.startpage.com/sp/search?cat=images&query=" + url.QueryEscape(q),
+		"p_mojeek":    "https://www.mojeek.com/search?fmt=images&q=" + url.QueryEscape(q),
+		"p_seznam":    "https://obrazky.seznam.cz/?q=" + url.QueryEscape(q),
+		"p_sogou":     "https://pic.sogou.com/napi/pc/searchList?mode=1&start=0&xml_len=48&query=" + url.QueryEscape(q),
+		"p_ddghtml":   "https://html.duckduckgo.com/html/?q=" + url.QueryEscape(q),
+	}
+	imgRe := regexp.MustCompile(`https?:[^"'\s<>]+?\.(?:jpe?g|png|webp)`)
+	for k, u := range probes {
+		wg.Add(1)
+		go func(k, u string) {
+			defer wg.Done()
+			t := time.Now()
+			page, err := getText(ctx, u, map[string]string{"Accept": "text/html,application/json"}, 4<<20)
+			s := ""
+			if err != nil {
+				s = "ERR " + err.Error()
+			} else {
+				ims := imgRe.FindAllString(page, 400)
+				ex := ""
+				if len(ims) > 3 {
+					ex = ims[3]
+				}
+				s = fmt.Sprintf("len=%d murl=%d thumbs=%d imgs=%d ex=%s | %s", len(page), strings.Count(page, "murl"), len(genericThumbs(page)), len(ims), ex, snippet(page))
+			}
+			m.Lock()
+			out[k] = fmt.Sprintf("%s (%dms)", s, time.Since(t).Milliseconds())
+			m.Unlock()
+		}(k, u)
+	}
 	wg.Wait()
 	diagOut, diagAt = out, time.Now()
 	writeJSON(w, 200, out)
