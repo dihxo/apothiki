@@ -570,3 +570,11 @@ body.noprice .pr{display:none!important}
 .tree a .caret.open{transform:rotate(90deg);color:var(--ink)}
 .tree a .tn{flex:1;min-width:0;font-style:normal;text-align:left}
 .tree a[data-act=cat-tog]{justify-content:flex-start}
+
+/* products list: no horizontal scroll */
+.ptab td,.ptab th{padding-left:8px;padding-right:8px}
+.ptab .qedit{width:62px}
+.ptab .pcell a.lk{white-space:normal}
+@media (max-width:1380px){.ptab .c-type{display:none}}
+@media (max-width:1180px){.ptab .c-loc{display:none}}
+@media (max-width:1080px){.ptab .qprice .xs{display:none}.ptab td,.ptab th{padding-left:5px;padding-right:5px}.ptab .qedit{width:56px}}
