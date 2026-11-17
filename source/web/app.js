@@ -97,8 +97,10 @@ function render(){
   try{ html = fn(arg); }catch(e){ console.error(e); html=`<div class="banner red">Σφάλμα εμφάνισης: ${esc(e.message)}</div>`; }
   const af=document.activeElement, afId=(af&&af.id&&af.dataset&&af.dataset.enter)?af.id:null;
   const bindFocus = af && af.dataset && af.dataset.bind ? {b:af.dataset.bind, pos:af.selectionStart} : null;
+  const qeFocus = af && af.dataset && af.dataset.qe ? {qe:af.dataset.qe, id:af.dataset.id, v:af.value} : null;
   $('#view').innerHTML = (!can('staff')?`<div class="banner blue">Έχεις πρόσβαση μόνο για ανάγνωση.</div>`:'') + html;
   if(afId){ const n=document.getElementById(afId); if(n) n.focus(); }
+  if(qeFocus){ const n=document.querySelector(`.qedit[data-qe="${qeFocus.qe}"][data-id="${qeFocus.id}"]`); if(n){ n.value=qeFocus.v; n.focus(); } }
   if(bindFocus){ const n=document.querySelector(`[data-bind="${bindFocus.b}"]`); if(n){ n.focus(); try{ n.setSelectionRange(bindFocus.pos,bindFocus.pos); }catch(e){} } }
   const auto=$('#view [data-autofocus]'); if(auto && !modalOpen() && !bindFocus && !afId) auto.focus();
 }

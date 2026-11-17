@@ -21,8 +21,8 @@ VIEWS.products = () => {
     <td><div class="pcell">${prodImg(p,38)}<div><a class="lk" href="#product-${p.id}">${esc(p.name)}</a> ${p.kind==='bundle'?'<span class="tag">Bundle</span>':''}${mnt?` <span class="pill red" title="Σε συντήρηση">🔧 ${mnt}</span>`:''}<div class="xs muted mono">${esc(p.sku)}</div></div></div></td>
     <td class="small muted">${esc(catPath(p.cat))||'—'}</td>
     <td class="small">${p.kind==='bundle'?'Bundle':(p.tracking==='serial'?'Σειριακοί':'Ποσότητα')}</td>
-    <td class="num">${st}</td><td class="num"><span class="avb ${avCls(fr)}">${fr}</span></td>
-    <td class="num small pr" style="white-space:nowrap">${priceLabel(p)}</td>
+    <td class="num">${can('staff')&&p.kind!=='bundle'&&p.tracking!=='serial'?`<input type="number" min="0" step="1" class="qedit" data-qe="qty" data-id="${p.id}" value="${esc(p.qty??0)}" title="Απόθεμα — γράψε και πάτα Enter">`:st}</td><td class="num"><span class="avb ${avCls(fr)}">${fr}</span></td>
+    <td class="num small pr" style="white-space:nowrap">${can('staff')?`<span class="qprice"><input type="number" min="0" step="0.01" class="qedit" data-qe="price" data-id="${p.id}" value="${esc(p.price??'')}" placeholder="${p.kind==='bundle'?'αυτόμ.':'0'}" title="Τιμή 1ης ημέρας (€, χωρίς ΦΠΑ) — γράψε και πάτα Enter"><span class="xs muted">€${p.priceType==='flat'?'':'/ημ.'}${p.priceType!=='flat'&&productExtra(p)!==''?' · επόμ. '+money(productExtra(p)).replace(' €',''):''}</span></span>`:priceLabel(p)}</td>
     <td class="small">${esc(p.location||'')}</td>
     <td class="num" style="white-space:nowrap"><button class="icon" data-act="qr" data-code="${esc(p.sku)}" data-name="${esc(p.name)}" title="QR">▣</button>${can('staff')?`<button class="icon" data-act="edit-product" data-id="${p.id}" title="Επεξεργασία">✎</button>`:''}</td></tr>`; }).join('');
   return `<div class="ph"><div><h1>Προϊόντα</h1><p class="sub">Εξοπλισμός, bundles και απόθεμα</p></div>
@@ -337,3 +337,21 @@ ON_INPUT.push(el=>{ if(el.dataset.pm==='name'){ const a=$('#gimgLink'); if(a) a.
 function extraPreview(p){ const tmp={...p, price:p.price===''?'':num(p.price), extraValue:p.extraValue===''?'':num(p.extraValue)}; const pr=productPrice(tmp); if(!pr) return ''; const ex=productExtra(tmp); const e=ex===''?pr:ex; return `Παράδειγμα: 1 ημ. ${money(pr)} · 3 ημ. ${money(pr+2*e)} · 7 ημ. ${money(pr+6*e)}`; }
 ON_CHANGE.push(el=>{ if(M&&M.type==='product'&&(el.dataset.redraw||el.dataset.redrawChange)){ M.p[el.dataset.pm]=el.value; drawProductModal(); return true; } return false; });
 ON_CHANGE.push(el=>{ if(el.dataset.mcat){ UI.prodCat=el.value; UI.mProdN=60; render(); return true; } return false; });
+
+/* γρήγορη αλλαγή τιμής / αποθέματος από τη λίστα */
+async function quickSave(el){
+  const p=D.products[el.dataset.id]; if(!p) return; const f=el.dataset.qe; const raw=el.value.trim();
+  let v; if(f==='price'){ if(raw===''&&p.kind==='bundle') v=''; else v=Math.max(0, r2(num(raw))); } else v=Math.max(0, Math.round(num(raw)));
+  if(String(v)===String(p[f]??(f==='price'?'':0))) return;
+  const {id,...doc}=p; doc[f]=v; el.classList.add('saving');
+  const ok=await put('products', p.id, doc, `${f==='price'?'Τιμή':'Απόθεμα'}: ${p.name} → ${f==='price'?(v===''?'αυτόματα':money(v)):v}`);
+  el.classList.remove('saving'); if(ok){ el.classList.add('saved'); setTimeout(()=>el.classList.remove('saved'),900); }
+}
+ON_CHANGE.unshift(el=>{ if(el.dataset.qe){ quickSave(el); return true; } return false; });
+document.addEventListener('keydown', e=>{ const el=e.target; if(!el.dataset||!el.dataset.qe) return;
+  if(e.key==='Enter'){ e.preventDefault(); el.blur(); }
+  else if(e.key==='Escape'){ const p=D.products[el.dataset.id]; el.value=p?(p[el.dataset.qe]??''):''; el.blur(); }
+});
+document.addEventListener('focusin', e=>{ const el=e.target; if(el.dataset&&el.dataset.qe){ el._jf=true; try{ el.select(); }catch(_){} } });
+document.addEventListener('mouseup', e=>{ const el=e.target; if(el.dataset&&el.dataset.qe&&el._jf){ e.preventDefault(); el._jf=false; try{ el.select(); }catch(_){} } });
+document.addEventListener('touchend', e=>{ const el=e.target; if(el.dataset&&el.dataset.qe&&el._jf){ el._jf=false; setTimeout(()=>{ try{ el.select(); }catch(_){} },30); } }, {passive:true});
