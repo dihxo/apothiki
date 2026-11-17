@@ -139,6 +139,63 @@ func migrate() {
 		saveDBLocked()
 		log.Printf("migration extra10: %d products", n)
 	}
+	if db.Counters["mig_backline"] == 0 {
+		if b, err := json.Marshal(db); err == nil {
+			bd := filepath.Join(dataDir, "backups")
+			os.MkdirAll(bd, 0o755)
+			os.WriteFile(filepath.Join(bd, "pre-backline-"+time.Now().Format("20060102-150405")+".json"), b, 0o644)
+		}
+		cats := db.Colls["categories"]
+		if cats == nil {
+			cats = map[string]Doc{}
+			db.Colls["categories"] = cats
+		}
+		soundID := ""
+		for id, c := range cats {
+			n, _ := c["name"].(string)
+			p, _ := c["parent"].(string)
+			if p == "" && strings.Contains(strings.ToLower(n), "ήχος") {
+				soundID = id
+			}
+		}
+		if soundID != "" {
+			blID := ""
+			for id, c := range cats {
+				n, _ := c["name"].(string)
+				p, _ := c["parent"].(string)
+				if p == soundID && strings.EqualFold(strings.TrimSpace(n), "backline") {
+					blID = id
+				}
+			}
+			if blID == "" {
+				blID = "ct-backline"
+				cats[blID] = Doc{"id": blID, "name": "Backline", "parent": soundID, "createdAt": now(), "updatedAt": now(), "updatedBy": "Σύστημα"}
+			}
+			names := map[string]bool{}
+			for _, n := range []string{"Ampeg Venture V7 amp bass", "ENGL THUNDER 50", "Orange Rockerverb 100",
+				"Gretsch catalina maple (old set) bass drum 20\"", "Gretsch catalina maple (old set) floor tom 14\"",
+				"Gretsch catalina maple (old set) snare 14\"", "Gretsch catalina maple (old set) tom 10\"",
+				"Gretsch catalina maple (old set) tom 12\"", "Kurzweill KAG-100", "Roland RD300 piano",
+				"DOUBLE KEYBOARD STAND", "ULTIMATE KEYBOARD STAND", "Keyboard Stand type x", "keyboard stool",
+				"GUITAR STAND", "MUSIC STAND"} {
+				names[strings.ToLower(strings.Join(strings.Fields(n), " "))] = true
+			}
+			n := 0
+			for _, p := range db.Colls["products"] {
+				nm, _ := p["name"].(string)
+				if names[strings.ToLower(strings.Join(strings.Fields(nm), " "))] {
+					p["cat"] = blID
+					p["updatedAt"] = now()
+					n++
+				}
+			}
+			addLogLocked("Σύστημα", fmt.Sprintf("Νέα υποκατηγορία Ήχος › Backline με %d προϊόντα", n))
+			log.Printf("migration backline: %d products", n)
+		}
+		db.Counters["mig_backline"] = 1
+		db.Version++
+		saveDBLocked()
+	}
 }
 
 func saveDBLocked() {
