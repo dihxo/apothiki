@@ -158,7 +158,7 @@ document.addEventListener('change', e=>{
 });
 document.addEventListener('keydown', async e=>{
   const el=e.target;
-  if(e.key==='Escape'){ if(modalOpen()) closeModal(); if($('#gres')) $('#gres').style.display='none'; return; }
+  if(e.key==='Escape'){ if(modalOpen()) closeModal(); if($('#gres')) $('#gres').style.display='none'; $$('.pick-add .gres').forEach(g=>g.style.display='none'); return; }
   if(e.key==='/' && !/INPUT|TEXTAREA|SELECT/.test(el.tagName) && $('#gs')){ e.preventDefault(); $('#gs').focus(); return; }
   if(e.key!=='Enter') return;
   if(el.id==='gs'){ e.preventDefault(); gsearchEnter(); return; }

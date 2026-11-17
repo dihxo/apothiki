@@ -352,7 +352,7 @@ ON_CHANGE.push((el)=>{
 });
 let ADD_LIST=[], ADD_SHOWN=0, ADD_NEED={};
 function addRowHTML(p){ const d=UI.draft; const need=ADD_NEED; return (p=>{ const fr=freeUnits(p.id,d.start,d.end,d.id).free - (p.kind!=='bundle'?(need[p.id]||0):0);
-    return `<a href="#" data-act="o-add" data-id="${p.id}"><span class="pcell">${prodImg(p,32)}<span><b>${esc(p.name)}</b> ${p.kind==='bundle'?'<span class="tag">Bundle</span>':''}<br><span class="xs muted">${esc(p.sku)} · ${esc(catPath(p.cat))} · ${priceLabel(p)}</span></span></span><span class="avb ${avCls(fr)}" title="Διαθέσιμα">${fr}</span></a>`; })(p); }
+    return `<a href="#" data-act="o-add" data-id="${p.id}"><span class="pcell">${prodImg(p,32)}<span><b>${esc(p.name)}</b> ${p.kind==='bundle'?'<span class="tag">Bundle</span>':''}<br><span class="xs muted">${esc(p.sku)} · ${esc(catPath(p.cat))} · ${priceLabel(p)}</span></span></span><span class="addr">${(()=>{ const n=d.lines.filter(l=>l.pid===p.id).reduce((a,l)=>a+num(l.qty),0); return n?`<span class="inord" title="Ήδη στην παραγγελία">✓ ${n}</span>`:''; })()}<span class="avb ${avCls(fr)}" title="Διαθέσιμα">${fr}</span></span></a>`; })(p); }
 function addMore(){ const box=$('#oAddRes'); if(!box) return; const next=ADD_LIST.slice(ADD_SHOWN, ADD_SHOWN+50); if(!next.length) return; ADD_SHOWN+=next.length;
   box.querySelector('.addmore')?.remove(); box.insertAdjacentHTML('beforeend', next.map(addRowHTML).join('')+(ADD_SHOWN<ADD_LIST.length?`<div class="addmore xs muted">Κύλισε για περισσότερα (${ADD_LIST.length-ADD_SHOWN})…</div>`:'')); }
 function drawAddResults(q){
@@ -373,7 +373,13 @@ function addProductLine(pid, qty=1){
   if(l) l.qty=num(l.qty)+qty; else d.lines.push({id:uid('ln'), pid, qty, price:productPrice(p), extraPrice:productExtra(p), priceType:p.priceType||'day', discount:0});
   dirty();
 }
-ACT['o-add']=el=>{ addProductLine(el.dataset.id); const i=$('#oAdd'); if(i){ i.value=''; } $('#oAddRes')&&($('#oAddRes').style.display='none'); };
+ACT['o-add']=el=>{ const pid=el.dataset.id, i0=$('#oAdd'), b0=$('#oAddRes'); const q=i0?i0.value:'', sc=b0?b0.scrollTop:0, shown=ADD_SHOWN;
+  addProductLine(pid);
+  // Η λίστα μένει ανοιχτή για πολλαπλές επιλογές· κλείνει μόνο με κλικ εκτός ή Esc.
+  const i=$('#oAdd'), box=$('#oAddRes'); if(!i||!box) return;
+  i.value=q; drawAddResults(q); while(ADD_SHOWN<shown && ADD_SHOWN<ADD_LIST.length) addMore(); box.scrollTop=sc;
+  if(!isM()) { i.focus({preventScroll:true}); try{ i.setSelectionRange(q.length,q.length); }catch(e){} }
+  const r=box.querySelector(`a[data-id="${pid}"]`); if(r){ r.classList.add('just'); setTimeout(()=>r.classList.remove('just'),700); } };
 ENTER['o-add-code']=v=>{ const f=findCode(v); let p=f&&f.product;
   if(!p){ const list=prodsSorted().filter(x=>[x.name,x.sku].some(s=>(s||'').toLowerCase().includes(v.toLowerCase()))); if(list.length===1) p=list[0]; }
   if(!p) return toast('Δεν βρέθηκε προϊόν: '+v, true);
