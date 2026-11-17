@@ -254,6 +254,191 @@ func snippet(s string) string {
 	return s
 }
 
+func searchCnBing(ctx context.Context, q string) ([]imgHit, error) {
+	page, err := getText(ctx, "https://cn.bing.com/images/async?first=0&count=35&mmasync=1&q="+url.QueryEscape(q),
+		map[string]string{"Accept": "text/html", "Referer": "https://cn.bing.com/images/search?q=" + url.QueryEscape(q)}, 4<<20)
+	if err != nil {
+		return nil, err
+	}
+	h := parseBing(page)
+	if len(h) == 0 {
+		page2, err2 := getText(ctx, "https://cn.bing.com/images/search?q="+url.QueryEscape(q), map[string]string{"Accept": "text/html"}, 4<<20)
+		if err2 == nil {
+			h = parseBing(page2)
+			if len(h) == 0 {
+				h = genericThumbs(page2)
+			}
+		}
+	}
+	if len(h) == 0 {
+		h = genericThumbs(page)
+	}
+	if len(h) == 0 {
+		return nil, errors.New("0 results (" + snippet(page) + ")")
+	}
+	return h, nil
+}
+
+func searchYahoo(ctx context.Context, q string) ([]imgHit, error) {
+	page, err := getText(ctx, "https://images.search.yahoo.com/search/images?p="+url.QueryEscape(q), map[string]string{"Accept": "text/html"}, 4<<20)
+	if err != nil {
+		return nil, err
+	}
+	h := genericThumbs(page)
+	if len(h) == 0 {
+		return nil, errors.New("0 results (" + snippet(page) + ")")
+	}
+	return h, nil
+}
+
+func searchSogou(ctx context.Context, q string) ([]imgHit, error) {
+	js, err := getText(ctx, "https://pic.sogou.com/napi/pc/searchList?mode=1&start=0&xml_len=48&query="+url.QueryEscape(q),
+		map[string]string{"Accept": "application/json", "Referer": "https://pic.sogou.com/"}, 4<<20)
+	if err != nil {
+		return nil, err
+	}
+	var r struct {
+		Data struct {
+			Items []struct {
+				PicURL    string `json:"picUrl"`
+				OriPicURL string `json:"oriPicUrl"`
+				ThumbURL  string `json:"thumbUrl"`
+				Title     string `json:"title"`
+			} `json:"items"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal([]byte(js), &r); err != nil {
+		return nil, errors.New("bad json (" + snippet(js) + ")")
+	}
+	var out []imgHit
+	for _, x := range r.Data.Items {
+		img := x.OriPicURL
+		if img == "" {
+			img = x.PicURL
+		}
+		th := x.ThumbURL
+		if th == "" {
+			th = x.PicURL
+		}
+		if strings.HasPrefix(img, "http") && strings.HasPrefix(th, "http") {
+			out = append(out, imgHit{Image: img, Thumb: th, Title: x.Title})
+		}
+	}
+	if len(out) == 0 {
+		return nil, errors.New("0 results")
+	}
+	return out, nil
+}
+
+func searchBaidu(ctx context.Context, q string) ([]imgHit, error) {
+	js, err := getText(ctx, "https://image.baidu.com/search/acjson?tn=resultjson_com&ipn=rj&ie=utf-8&oe=utf-8&word="+url.QueryEscape(q)+"&queryWord="+url.QueryEscape(q)+"&pn=0&rn=30",
+		map[string]string{"Accept": "application/json", "Referer": "https://image.baidu.com/"}, 4<<20)
+	if err != nil {
+		return nil, err
+	}
+	var r struct {
+		Data []struct {
+			ThumbURL  string `json:"thumbURL"`
+			MiddleURL string `json:"middleURL"`
+			FromTitle string `json:"fromPageTitleEnc"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal([]byte(js), &r); err != nil {
+		return nil, errors.New("bad json (" + snippet(js) + ")")
+	}
+	var out []imgHit
+	for _, x := range r.Data {
+		img := x.MiddleURL
+		if img == "" {
+			img = x.ThumbURL
+		}
+		if strings.HasPrefix(img, "http") {
+			out = append(out, imgHit{Image: img, Thumb: x.ThumbURL, Title: x.FromTitle})
+		}
+	}
+	if len(out) == 0 {
+		return nil, errors.New("0 results")
+	}
+	return out, nil
+}
+
+var thomannRe = regexp.MustCompile(`https://thumbs\.static-thomann\.de/thumb/thumb220x220/pics/prod/(\d+)\.(webp|jpg)`)
+
+func searchThomann(ctx context.Context, q string) ([]imgHit, error) {
+	page, err := getText(ctx, "https://www.thomann.de/intl/search_dir.html?sw="+url.QueryEscape(q), map[string]string{"Accept": "text/html"}, 6<<20)
+	if err != nil {
+		return nil, err
+	}
+	var out []imgHit
+	seen := map[string]bool{}
+	for _, m := range thomannRe.FindAllStringSubmatch(page, 60) {
+		if seen[m[1]] {
+			continue
+		}
+		seen[m[1]] = true
+		out = append(out, imgHit{Image: strings.Replace(m[0], "thumb220x220", "thumb600x600", 1), Thumb: m[0]})
+		if len(out) >= 6 {
+			break
+		}
+	}
+	if len(out) == 0 {
+		return nil, errors.New("0 results")
+	}
+	return out, nil
+}
+
+var yaThumbRe = regexp.MustCompile(`//avatars\.mds\.yandex\.net/i\?id=[A-Za-z0-9_\-]+(?:&n=\d+)?`)
+var yaOrigRe = regexp.MustCompile(`"(?:origUrl|img_href|url)":"(https?://[^"]+?\.(?:jpe?g|png|webp)[^"]*)"`)
+
+func searchYandex(ctx context.Context, q string) ([]imgHit, error) {
+	page, err := getText(ctx, "https://yandex.com/images/search?text="+url.QueryEscape(q), map[string]string{"Accept": "text/html"}, 6<<20)
+	if err != nil {
+		return nil, err
+	}
+	page = html.UnescapeString(page)
+	var thumbs []string
+	seen := map[string]bool{}
+	for _, m := range yaThumbRe.FindAllString(page, 200) {
+		if !seen[m] {
+			seen[m] = true
+			thumbs = append(thumbs, "https:"+m)
+		}
+	}
+	var origs []string
+	seenO := map[string]bool{}
+	for _, m := range yaOrigRe.FindAllStringSubmatch(page, 200) {
+		u := strings.ReplaceAll(m[1], `\/`, "/")
+		if !seenO[u] {
+			seenO[u] = true
+			origs = append(origs, u)
+		}
+	}
+	var out []imgHit
+	for i, t := range thumbs {
+		img := t
+		if i < len(origs) && len(origs) >= len(thumbs)/2 {
+			img = origs[i]
+		}
+		out = append(out, imgHit{Image: img, Thumb: t})
+		if len(out) >= 12 {
+			break
+		}
+	}
+	if len(out) == 0 {
+		// χωρίς μικρογραφίες: χρησιμοποίησε απευθείας τις αρχικές εικόνες
+		for _, u := range origs {
+			out = append(out, imgHit{Image: u, Thumb: u})
+			if len(out) >= 12 {
+				break
+			}
+		}
+	}
+	if len(out) == 0 {
+		return nil, errors.New("0 results (" + snippet(page) + ")")
+	}
+	return out, nil
+}
+
 func hImgSearch(w http.ResponseWriter, r *http.Request, u Doc) {
 	q := strings.TrimSpace(r.URL.Query().Get("q"))
 	if len(q) < 2 || len(q) > 200 {
@@ -266,7 +451,7 @@ func hImgSearch(w http.ResponseWriter, r *http.Request, u Doc) {
 		name string
 		fn   func(context.Context, string) ([]imgHit, error)
 	}
-	engines := []eng{{"bing", searchBingPage}, {"bing2", searchBingAsync}, {"ddg", searchDDG}, {"brave", searchBrave}, {"google", searchGoogle}}
+	engines := []eng{{"yandex", searchYandex}, {"thomann", searchThomann}, {"bing", searchBingPage}, {"bing2", searchBingAsync}, {"cnbing", searchCnBing}, {"ddg", searchDDG}, {"baidu", searchBaidu}}
 	type res struct {
 		hits []imgHit
 		err  error
@@ -287,49 +472,21 @@ func hImgSearch(w http.ResponseWriter, r *http.Request, u Doc) {
 			got <- struct{}{}
 		}(i, e)
 	}
-	// Περιμένουμε με προτεραιότητα: παίρνουμε την πρώτη (κατά σειρά) μηχανή με αποτελέσματα.
-	pick := func() ([]imgHit, bool) {
-		rmu.Lock()
-		defer rmu.Unlock()
-		for _, x := range results {
-			if !x.done {
-				return nil, false
-			}
-			if len(x.hits) > 0 {
-				return x.hits, true
-			}
-		}
-		return nil, true
+	// Περιμένουμε όλες τις μηχανές (έως 9") και ενώνουμε τα αποτελέσματα κατά προτεραιότητα.
+	allDone := make(chan struct{})
+	go func() { wg.Wait(); close(allDone) }()
+	select {
+	case <-allDone:
+	case <-time.After(9 * time.Second):
+	case <-ctx.Done():
 	}
+	_ = got
 	var hits []imgHit
-	deadline := time.After(6 * time.Second)
-wait:
-	for n := 0; n < len(engines); {
-		select {
-		case <-got:
-			n++
-			if h, ok := pick(); ok {
-				hits = h
-				break wait
-			}
-		case <-deadline:
-			// μετά από 6" δεχόμαστε όποια μηχανή έχει ήδη αποτελέσματα
-			rmu.Lock()
-			for _, x := range results {
-				if len(x.hits) > 0 {
-					hits = x.hits
-					break
-				}
-			}
-			rmu.Unlock()
-			if hits != nil {
-				break wait
-			}
-			deadline = nil
-		case <-ctx.Done():
-			break wait
-		}
+	rmu.Lock()
+	for _, x := range results {
+		hits = append(hits, x.hits...)
 	}
+	rmu.Unlock()
 	diag := map[string]string{}
 	rmu.Lock()
 	for i, x := range results {
@@ -356,7 +513,7 @@ wait:
 		}
 		seen[h.Image] = true
 		out = append(out, h)
-		if len(out) >= 15 {
+		if len(out) >= 20 {
 			break
 		}
 	}
@@ -425,7 +582,7 @@ func hImgDiag(w http.ResponseWriter, r *http.Request) {
 	}
 	var wg sync.WaitGroup
 	var m sync.Mutex
-	for _, e := range []eng{{"bing", searchBingPage}, {"bing2", searchBingAsync}, {"ddg", searchDDG}, {"brave", searchBrave}, {"google", searchGoogle}} {
+	for _, e := range []eng{{"yandex", searchYandex}, {"thomann", searchThomann}, {"bing", searchBingPage}, {"bing2", searchBingAsync}, {"cnbing", searchCnBing}, {"ddg", searchDDG}, {"baidu", searchBaidu}} {
 		wg.Add(1)
 		go func(e eng) {
 			defer wg.Done()
@@ -442,46 +599,6 @@ func hImgDiag(w http.ResponseWriter, r *http.Request) {
 			out[e.name] = fmt.Sprintf("%s (%dms)", s, time.Since(t).Milliseconds())
 			m.Unlock()
 		}(e)
-	}
-	probes := map[string]string{
-		"p_cnbing":    "https://cn.bing.com/images/async?first=0&count=35&mmasync=1&q=" + url.QueryEscape(q),
-		"p_cnbing2":   "https://cn.bing.com/images/search?q=" + url.QueryEscape(q),
-		"p_yahoo":     "https://images.search.yahoo.com/search/images?p=" + url.QueryEscape(q),
-		"p_yandex":    "https://yandex.com/images/search?text=" + url.QueryEscape(q),
-		"p_baidu":     "https://image.baidu.com/search/acjson?tn=resultjson_com&ipn=rj&word=" + url.QueryEscape(q) + "&queryWord=" + url.QueryEscape(q) + "&pn=0&rn=30",
-		"p_thomann":   "https://www.thomann.de/intl/search_dir.html?sw=" + url.QueryEscape("Shure SM58"),
-		"p_bax":       "https://www.bax-shop.co.uk/search?keyword=" + url.QueryEscape("Shure SM58"),
-		"p_musicst":   "https://www.musicstore.com/en_GB/GBP/search?SearchTerm=" + url.QueryEscape("Shure SM58"),
-		"p_openverse": "https://api.openverse.org/v1/images/?q=" + url.QueryEscape(q),
-		"p_commons":   "https://commons.wikimedia.org/w/api.php?action=query&format=json&generator=search&gsrnamespace=6&gsrlimit=10&prop=imageinfo&iiprop=url&gsrsearch=" + url.QueryEscape(q),
-		"p_startpage": "https://www.startpage.com/sp/search?cat=images&query=" + url.QueryEscape(q),
-		"p_mojeek":    "https://www.mojeek.com/search?fmt=images&q=" + url.QueryEscape(q),
-		"p_seznam":    "https://obrazky.seznam.cz/?q=" + url.QueryEscape(q),
-		"p_sogou":     "https://pic.sogou.com/napi/pc/searchList?mode=1&start=0&xml_len=48&query=" + url.QueryEscape(q),
-		"p_ddghtml":   "https://html.duckduckgo.com/html/?q=" + url.QueryEscape(q),
-	}
-	imgRe := regexp.MustCompile(`https?:[^"'\s<>]+?\.(?:jpe?g|png|webp)`)
-	for k, u := range probes {
-		wg.Add(1)
-		go func(k, u string) {
-			defer wg.Done()
-			t := time.Now()
-			page, err := getText(ctx, u, map[string]string{"Accept": "text/html,application/json"}, 4<<20)
-			s := ""
-			if err != nil {
-				s = "ERR " + err.Error()
-			} else {
-				ims := imgRe.FindAllString(page, 400)
-				ex := ""
-				if len(ims) > 3 {
-					ex = ims[3]
-				}
-				s = fmt.Sprintf("len=%d murl=%d thumbs=%d imgs=%d ex=%s | %s", len(page), strings.Count(page, "murl"), len(genericThumbs(page)), len(ims), ex, snippet(page))
-			}
-			m.Lock()
-			out[k] = fmt.Sprintf("%s (%dms)", s, time.Since(t).Milliseconds())
-			m.Unlock()
-		}(k, u)
 	}
 	wg.Wait()
 	diagOut, diagAt = out, time.Now()

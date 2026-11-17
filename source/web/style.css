@@ -582,3 +582,5 @@ body.noprice .pr{display:none!important}
 .pick-add .gres .addr{display:flex;align-items:center;gap:6px;flex:none}
 .pick-add .gres .inord{font-size:12px;font-weight:700;color:#1a7f4b;background:#e8f8ef;border:1px solid #9fdcb9;border-radius:20px;padding:2px 8px;white-space:nowrap}
 .pick-add .gres a.just{background:#e8f8ef !important;transition:background .3s}
+
+.isugg-alt{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:6px 0 2px}

@@ -146,7 +146,7 @@ function suggHTML(){
   const p=M&&M.p; if(!p) return '';
   if(p._suggBusy) return `<div class="isugg"><div class="isugg-h">Ψάχνω φωτογραφίες για «${esc(p._suggQ)}»…</div><div class="isugg-row">${'<span class="isugg-ph"></span>'.repeat(5)}</div></div>`;
   if(!p._sugg) return '';
-  if(!p._sugg.length) return `<div class="isugg"><div class="isugg-h">Δεν βρέθηκαν φωτογραφίες για «${esc(p._suggQ)}». Δοκίμασε πιο συγκεκριμένο όνομα (μάρκα + μοντέλο).</div></div>`;
+  if(!p._sugg.length) return `<div class="isugg"><div class="isugg-h">Δεν βρέθηκαν αυτόματα φωτογραφίες για «${esc(p._suggQ)}».</div><div class="isugg-alt"><a class="btn sm" href="https://www.google.com/search?tbm=isch&q=${encodeURIComponent(p._suggQ)}" target="_blank" rel="noopener">🔎 Άνοιγμα στο Google Εικόνες</a><button class="btn sm ghost" data-act="pm-sugg-find">↻ Ξανά</button><span class="xs muted">Δεξί κλικ σε μια εικόνα → «Αντιγραφή εικόνας» (ή «Αντιγραφή διεύθυνσης εικόνας») και πάτα <b>⌘V / Ctrl+V</b> εδώ.</span></div></div>`;
   const page=p._suggPage||0, list=p._sugg.slice(page*5,page*5+5);
   return `<div class="isugg"><div class="isugg-h"><span>Προτάσεις για «${esc(p._suggQ)}» — κλικ για επιλογή</span>${p._sugg.length>5?`<button class="btn sm ghost" data-act="pm-sugg-more">Άλλες ↻</button>`:''}</div>
     <div class="isugg-row">${list.map((h,i)=>`<button class="isugg-it${p._suggPick===page*5+i?' busy':''}" data-act="pm-sugg-pick" data-i="${page*5+i}" title="${esc(h.title||'')}"><img src="${esc(h.thumb||h.image)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.closest('button').style.display='none'"></button>`).join('')}</div></div>`;
@@ -329,7 +329,13 @@ async function setProductImage(blob, fit){
 }
 ACT['pm-img-pick']=()=>{ const inp=document.createElement('input'); inp.type='file'; inp.accept='image/*'; inp.onchange=()=>{ if(inp.files[0]) setProductImage(inp.files[0]); }; inp.click(); };
 ACT['pm-img-del']=()=>{ M.p.image=''; M.p.imageUrl=''; drawProductModal(); };
-document.addEventListener('paste', e=>{ if(!M||M.type!=='product') return; const items=[...(e.clipboardData?.items||[])]; const it=items.find(i=>i.kind==='file'&&/^image\//.test(i.type)); if(!it) return; e.preventDefault(); setProductImage(it.getAsFile()); });
+document.addEventListener('paste', async e=>{ if(!M||M.type!=='product') return; const items=[...(e.clipboardData?.items||[])]; const it=items.find(i=>i.kind==='file'&&/^image\//.test(i.type));
+  if(it){ e.preventDefault(); setProductImage(it.getAsFile()); return; }
+  // επικόλληση διεύθυνσης εικόνας (όχι μέσα σε πεδίο κειμένου)
+  const txt=(e.clipboardData?.getData('text')||'').trim(); const tag=(e.target&&e.target.tagName)||'';
+  if(!/^https?:\/\/\S+$/.test(txt) || ((tag==='INPUT'||tag==='TEXTAREA') && !/\.(jpe?g|png|webp|gif|avif)(\?|$)/i.test(txt))) return;
+  e.preventDefault();
+  try{ const r=await fetch('/api/imgfetch?url='+encodeURIComponent(txt),{credentials:'same-origin'}); const b=r.ok?await r.blob():null; if(b&&/^image\//.test(b.type)){ await setProductImage(b,'contain'); toast('Η φωτογραφία μπήκε'); } else toast('Η διεύθυνση δεν είναι εικόνα — δοκίμασε «Αντιγραφή εικόνας».', true); }catch(err){ toast('Η φωτογραφία δεν κατέβηκε', true); } });
 document.addEventListener('dragover', e=>{ const z=e.target.closest&&e.target.closest('#imgDrop'); if(z){ e.preventDefault(); z.classList.add('over'); } });
 document.addEventListener('dragleave', e=>{ const z=e.target.closest&&e.target.closest('#imgDrop'); if(z) z.classList.remove('over'); });
 document.addEventListener('drop', e=>{ const z=e.target.closest&&e.target.closest('#imgDrop'); if(!z) return; e.preventDefault(); z.classList.remove('over'); const f=[...(e.dataTransfer?.files||[])].find(f=>/^image\//.test(f.type)); if(f) setProductImage(f); else toast('Σύρε ένα αρχείο εικόνας (ή αντέγραψε την εικόνα και πάτα Ctrl+V).', true); });
