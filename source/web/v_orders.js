@@ -250,7 +250,7 @@ VIEWS.order = id => {
       <div class="card p0">
         ${ro?'':`<div style="padding:12px 16px;border-bottom:1px solid var(--line)" class="row addrow">
           <div class="pick-add grow"><input type="search" id="oAdd" placeholder="🔍 ${isM()?'Αναζήτηση προϊόντος ή κωδικού…':'Αναζήτηση για προσθήκη προϊόντων ή σάρωση κωδικού + Enter'}" data-enter="o-add-code" autocomplete="off" style="width:100%"><div class="gres" id="oAddRes" style="display:none"></div></div>
-          <button class="btn" data-act="o-cam-add" title="Σάρωση με κάμερα">📷</button><button class="btn" data-act="o-custom">+ Ελεύθερη γραμμή</button></div>`}
+          <button class="btn" data-act="o-cam-add" title="Σάρωση με κάμερα">📷</button><button class="btn" data-act="cp-open" title="Επιλογή προϊόντων ανά κατηγορία">📂 Από κατηγορίες</button><button class="btn" data-act="o-custom">+ Ελεύθερη γραμμή</button></div>`}
         ${d.lines.length?`<div class="tw"><table><thead><tr><th class="ocol-name">Προϊόν</th><th>Διαθέσιμα</th><th>Ποσότητα</th><th class="pr">Χρέωση</th><th class="pr">Έκπτ.</th><th class="num pr">Σύνολο</th><th></th></tr></thead><tbody>${lineRows}</tbody></table></div>`
         :'<div class="empty" style="padding:30px">Δεν έχουν προστεθεί προϊόντα ακόμη.</div>'}
         <div class="sum pr" style="padding:12px 16px;border-top:1px solid var(--line);max-width:360px;margin-left:auto">
@@ -682,3 +682,55 @@ function whOrder(id){
 }
 
 ACT['o-line-untier']=el=>{ const d=UI.draft; const l=d&&d.lines[+el.dataset.i]; if(!l) return; delete l.tiered; l.extraPrice=r2(num(l.price)*0.1); dirty(); };
+
+/* ---------- προσθήκη προϊόντων από κατηγορίες ---------- */
+function cpCurrent(){ const d=UI.draft, m={}; for(const l of d.lines) if(l.pid) m[l.pid]=(m[l.pid]||0)+num(l.qty); return m; }
+ACT['cp-open']=()=>{ const d=UI.draft; if(!d) return;
+  const mains=sortBy(Object.values(D.categories).filter(c=>!c.parent||!D.categories[c.parent]),c=>c.name);
+  const cur=cpCurrent();
+  M={type:'catpick', cat:UI.cpCat&&D.categories[UI.cpCat]?UI.cpCat:(mains[0]?.id||''), open:new Set(UI.cpOpen||[]), q:{...cur}, orig:cur, free:{}, redraw:drawCatPick};
+  if(M.cat){ let c=D.categories[M.cat]; while(c&&c.parent){ M.open.add(c.parent); c=D.categories[c.parent]; } }
+  drawCatPick(); };
+function cpFree(pid){ const d=UI.draft; if(M.free[pid]===undefined) M.free[pid]=freeUnits(pid,d.start,d.end,d.id).free; return M.free[pid]; }
+function cpRow(p){ const q=num(M.q[p.id]||0), fr=cpFree(p.id), rem=fr-q;
+  return `<div class="cprow${q?' sel':''}" data-pid="${p.id}">${prodImg(p,40)}<div class="cpn"><b>${esc(p.name)}</b>${p.kind==='bundle'?' <span class="tag">Bundle</span>':''}<div class="xs muted">${esc(p.sku||'')}${NOPRICE()?'':' · '+priceLabel(p)}</div></div>
+    <span class="avb ${avCls(rem)}" title="Μένουν ${rem} από ${fr} διαθέσιμα">${rem}/${fr}</span>
+    <div class="qstep"><button class="btn sm" data-act="cp-q" data-pid="${p.id}" data-d="-1">−</button><input type="number" min="0" inputmode="numeric" data-cpq="${p.id}" value="${q||''}" placeholder="0"><button class="btn sm" data-act="cp-q" data-pid="${p.id}" data-d="1">+</button></div></div>`; }
+function cpChanges(){ const out=[]; const ids=new Set([...Object.keys(M.q),...Object.keys(M.orig)]); for(const id of ids){ const a=num(M.orig[id]||0), b=num(M.q[id]||0); if(a!==b) out.push({id,a,b}); } return out; }
+function cpFoot(){ const ch=cpChanges(); const sel=Object.values(M.q).filter(v=>num(v)>0).length; const tot=Object.values(M.q).reduce((a,v)=>a+num(v),0);
+  return `<span class="small"><b>${sel}</b> προϊόντα · <b>${tot}</b> τεμ. στην παραγγελία${ch.length?` · <span style="color:var(--gold-d,#8a6a00)">${ch.length} αλλαγές</span>`:''}</span>`; }
+function drawCatPick(){
+  const cats=Object.values(D.categories); const kids=id=>sortBy(cats.filter(c=>(c.parent||'')===(id||'')&&(id||!c.parent||!D.categories[c.parent])),c=>c.name);
+  const mains=sortBy(cats.filter(c=>!c.parent||!D.categories[c.parent]),c=>c.name);
+  const tree=(list,depth)=>list.map(c=>{ const ks=cats.filter(x=>x.parent===c.id); const op=M.open.has(c.id);
+    const selN=Object.entries(M.q).filter(([pid,v])=>num(v)>0&&D.products[pid]&&catDesc(c.id).has(D.products[pid].cat)).length;
+    return `<a class="${M.cat===c.id?'on':''}${depth?'':' main'}" data-act="cp-cat" data-v="${c.id}" style="padding-left:${10+depth*14}px">${ks.length?`<i class="caret${op?' open':''}">›</i>`:'<i class="caret"></i>'}<em class="tn">${esc(c.name)}</em>${selN?`<span class="cpsel">${selN}</span>`:''}<span>${catCount(c.id)}</span></a>`+(ks.length&&op?tree(sortBy(ks,x=>x.name),depth+1):''); }).join('');
+  const uncats=Object.values(D.products).filter(p=>!p.archived&&(!p.cat||!D.categories[p.cat]));
+  let body='';
+  if(M.cat==='_none'){ body=prodsSorted(uncats).map(cpRow).join(''); }
+  else if(M.cat){ const set=catDesc(M.cat); const list=Object.values(D.products).filter(p=>!p.archived&&set.has(p.cat));
+    // ομαδοποίηση ανά υποκατηγορία
+    const multi=new Set(list.map(p=>p.cat)).size>1; let last=null;
+    for(const p of sortBy(prodsSorted(list),x=>x.cat===M.cat?0:1)){ if(multi&&p.cat!==last){ body+=`<div class="cpgrp">${esc(D.categories[p.cat]?.name||'')}</div>`; last=p.cat; } body+=cpRow(p); }
+    if(!list.length) body='<div class="empty"><b>Δεν υπάρχουν προϊόντα σε αυτή την κατηγορία</b></div>'; }
+  const chips=isM()?`<div class="cpchips">${mains.map(c=>`<button class="chip${(M.cat===c.id||catDesc(c.id).has(M.cat))?' on':''}" data-act="cp-cat" data-v="${c.id}">${esc(c.name)}</button>`).join('')}</div>${M.cat&&M.cat!=='_none'?(()=>{ const root=mains.find(c=>catDesc(c.id).has(M.cat)); const sub=root?sortBy(cats.filter(x=>x.parent===root.id),x=>x.name):[]; return sub.length?`<div class="cpchips sub"><button class="chip${M.cat===root.id?' on':''}" data-act="cp-cat" data-v="${root.id}">Όλα</button>${sub.map(c=>`<button class="chip${M.cat===c.id?' on':''}" data-act="cp-cat" data-v="${c.id}">${esc(c.name)}</button>`).join('')}</div>`:''; })():''}`:'';
+  openModal(`<div class="dlg-h"><h2>Προσθήκη από κατηγορίες</h2><button class="icon" data-act="modal-close">✕</button></div>
+  <div class="cpwrap">${isM()?'':`<nav class="cptree">${tree(mains,0)}${uncats.length?`<a class="${M.cat==='_none'?'on':''} main" data-act="cp-cat" data-v="_none" style="padding-left:10px"><i class="caret"></i><em class="tn">Χωρίς κατηγορία</em><span>${uncats.length}</span></a>`:''}</nav>`}
+    <div class="cplist">${chips}${body}</div></div>
+  <div class="dlg-f"><div id="cpFoot" style="margin-right:auto">${cpFoot()}</div><button class="btn" data-act="modal-close">Άκυρο</button><button class="btn pri" data-act="cp-apply" data-primary>Προσθήκη στην παραγγελία</button></div>`, 'xl');
+}
+function cpSet(pid, v){ v=Math.max(0, Math.round(num(v))); if(v) M.q[pid]=v; else delete M.q[pid];
+  const row=document.querySelector(`.cprow[data-pid="${pid}"]`); if(row){ const fr=cpFree(pid), rem=fr-v; row.classList.toggle('sel', v>0);
+    const inp=row.querySelector('input'); if(inp&&document.activeElement!==inp) inp.value=v||''; const b=row.querySelector('.avb'); b.className='avb '+avCls(rem); b.textContent=`${rem}/${fr}`; b.title=`Μένουν ${rem} από ${fr} διαθέσιμα`; }
+  const f=$('#cpFoot'); if(f) f.innerHTML=cpFoot(); }
+ACT['cp-q']=el=>cpSet(el.dataset.pid, num(M.q[el.dataset.pid]||0)+(+el.dataset.d));
+ACT['cp-cat']=el=>{ const id=el.dataset.v; const has=Object.values(D.categories).some(x=>x.parent===id);
+  if(has&&!isM()){ if(M.open.has(id)&&M.cat===id) M.open.delete(id); else M.open.add(id); }
+  M.cat=id; UI.cpCat=id; UI.cpOpen=[...M.open]; const sc=document.querySelector('.cptree')?.scrollTop||0; drawCatPick(); const t=document.querySelector('.cptree'); if(t) t.scrollTop=sc; };
+ON_INPUT.push(el=>{ if(el.dataset.cpq&&M&&M.type==='catpick'){ cpSet(el.dataset.cpq, el.value); return true; } return false; });
+ACT['cp-apply']=()=>{ const d=UI.draft; if(!d) return closeModal(); const ch=cpChanges(); if(!ch.length) return closeModal();
+  for(const {id,b} of ch){ const ls=d.lines.filter(l=>l.pid===id);
+    if(!ls.length){ if(b>0){ const p=D.products[id]; d.lines.push(Object.assign({id:uid('ln'), pid:id, qty:b, price:productPrice(p), extraPrice:productExtra(p), priceType:p.priceType||'day', discount:0}, productTiered(p)?{tiered:true}:{})); } continue; }
+    if(b<=0){ d.lines=d.lines.filter(l=>l.pid!==id); continue; }
+    const others=ls.slice(1).reduce((a,l)=>a+num(l.qty),0); if(b>others) ls[0].qty=b-others; else { ls[0].qty=b; d.lines=d.lines.filter(l=>l.pid!==id||l===ls[0]); } }
+  closeModal(); dirty(); toast(`Ενημερώθηκε η παραγγελία (${ch.length} ${ch.length===1?'αλλαγή':'αλλαγές'})`); };
