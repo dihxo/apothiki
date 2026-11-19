@@ -584,3 +584,26 @@ body.noprice .pr{display:none!important}
 .pick-add .gres a.just{background:#e8f8ef !important;transition:background .3s}
 
 .isugg-alt{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:6px 0 2px}
+
+/* calendar: bigger */
+.cal{max-height:calc(100vh - 210px)}
+.gantt td.cell{height:52px;padding:0}
+.gantt .gbar{top:8px;height:36px;font-size:13px;padding:0 10px;display:flex;align-items:center;gap:8px;border-radius:8px;box-shadow:0 1px 2px rgba(0,0,0,.12)}
+.gantt .gbar b{font-weight:700;overflow:hidden;text-overflow:ellipsis}
+.gantt.gbig td.cell{height:70px}
+.gantt.gbig .gbar{top:9px;height:52px;flex-direction:column;align-items:flex-start;justify-content:center;gap:2px;font-size:14px}
+.gantt .gbar .gsub{font-size:11.5px;font-weight:500;opacity:.92;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+.gantt.gbig .gbar b{white-space:nowrap;max-width:100%}
+.gantt .gbar.cut1{border-top-left-radius:0;border-bottom-left-radius:0}
+.gantt .gbar.cut2{border-top-right-radius:0;border-bottom-right-radius:0}
+.gantt .gcol{position:absolute;top:0;bottom:0;border-right:1px solid var(--soft)}
+.gantt .gcol.we{background:#fafbfc}.gantt .gcol.td{background:#fff9e3}
+.cal .nm{font-size:13px}
+.cal .nm .cnm{color:var(--muted);font-size:12px}
+.cal.gbig th{font-size:13px;padding:10px 4px}
+.cal.gbig th .cdw{color:var(--muted);font-weight:500}
+.cal.gbig td{font-size:14px;padding:10px 4px}
+.ph .row .seg + .seg{margin-left:4px}
+.gantt .gcol.tdy{background:#fff9e3}
+.cal table[style*=fixed] .nm{min-width:0;max-width:none;overflow:hidden;text-overflow:ellipsis}
+.cal table[style*=fixed] th,.cal table[style*=fixed] td{min-width:0}

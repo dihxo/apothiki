@@ -2,20 +2,35 @@
 'use strict';
 
 /* ---------- calendar ---------- */
+const CAL_VIEWS={day:'Ημέρα','3d':'3 ημέρες',week:'Εβδομάδα',month:'Μήνας'};
+function calView(){ if(!UI.calView){ try{ UI.calView=localStorage.getItem('calView')||'week'; }catch(e){ UI.calView='week'; } } return CAL_VIEWS[UI.calView]?UI.calView:'week'; }
+function calRange(){ const v=calView(), t=today(); let s=UI.calStart||t;
+  if(v==='week') s=addDays(s, -((dow(s)+6)%7));            // Δευτέρα
+  if(v==='month') s=s.slice(0,8)+'01';
+  let n=v==='day'?1:v==='3d'?3:v==='week'?7:diffDays(s, addMonths1(s))-0;
+  return {start:s, n}; }
+function addMonths1(d){ const [y,m]=d.split('-').map(Number); const ny=m===12?y+1:y, nm=m===12?1:m+1; return `${ny}-${String(nm).padStart(2,'0')}-01`; }
+const MONTHS_FULL=['Ιανουάριος','Φεβρουάριος','Μάρτιος','Απρίλιος','Μάιος','Ιούνιος','Ιούλιος','Αύγουστος','Σεπτέμβριος','Οκτώβριος','Νοέμβριος','Δεκέμβριος'];
 VIEWS.calendar = () => {
-  const start=UI.calStart||addDays(today(),-2), n=UI.calDays, t=today();
+  const v=calView(); const {start,n}=calRange(); const t=today();
   const days=[...Array(n)].map((_,i)=>addDays(start,i)), end=days[n-1];
-  const head=days.map(d=>`<th class="${[0,6].includes(dow(d))?'we':''} ${d===t?'td':''}">${DOW[dow(d)]}<br>${d.slice(8)}/${d.slice(5,7)}</th>`).join('');
-  const ctrl=`<div class="row"><div class="seg"><button class="${UI.calMode==='orders'?'on':''}" data-act="tab" data-k="calMode" data-v="orders">Παραγγελίες</button><button class="${UI.calMode==='avail'?'on':''}" data-act="tab" data-k="calMode" data-v="avail">Διαθεσιμότητα</button></div>
+  const big=n<=7;
+  const head=days.map(d=>`<th class="${[0,6].includes(dow(d))?'we':''} ${d===t?'td':''}">${big?`<span class="cdw">${DOW[dow(d)]}</span> <b>${d.slice(8)}/${d.slice(5,7)}</b>`:`${DOW[dow(d)]}<br>${d.slice(8)}`}</th>`).join('');
+  const title=v==='month'?`${MONTHS_FULL[+start.slice(5,7)-1]} ${start.slice(0,4)}`:(n===1?`${DOW[dow(start)]} ${fmtD(start)}`:`${fmtD(start)} – ${fmtD(end)}`);
+  const ctrl=`<div class="row"><div class="seg">${Object.entries(CAL_VIEWS).map(([k,l])=>`<button class="${v===k?'on':''}" data-act="cal-view" data-v="${k}">${l}</button>`).join('')}</div>
+    <div class="seg"><button class="${UI.calMode==='orders'?'on':''}" data-act="tab" data-k="calMode" data-v="orders">Παραγγελίες</button><button class="${UI.calMode==='avail'?'on':''}" data-act="tab" data-k="calMode" data-v="avail">Διαθεσιμότητα</button></div>
     ${UI.calMode==='avail'?`<select data-bindc="calCat"><option value="all">Όλες οι κατηγορίες</option>${catsSorted().map(c=>`<option value="${c.id}" ${UI.calCat===c.id?'selected':''}>${esc(c.path)}</option>`).join('')}</select>`:''}
-    <button class="btn" data-act="cal-mv" data-v="-7">‹</button><input type="date" data-bindc="calStart" value="${start}"><button class="btn" data-act="cal-mv" data-v="7">›</button><button class="btn" data-act="cal-today">Σήμερα</button></div>`;
+    <button class="btn" data-act="cal-mv" data-v="-1">‹</button><input type="date" data-bindc="calStart" value="${UI.calStart||t}"><button class="btn" data-act="cal-mv" data-v="1">›</button><button class="btn" data-act="cal-today">Σήμερα</button></div>`;
   let body='';
   if(UI.calMode==='orders'){
     const list=sortBy(Object.values(D.orders).filter(o=>o.start&&o.status!=='cancelled'&&o.start<=end&&(orderRange(o)[1])>=start), o=>o.start);
-    const W=40; // px per day (min-width cells)
-    body=list.length?`<div class="cal gantt"><table style="min-width:${230+n*W}px"><thead><tr><th class="nm">Παραγγελία</th>${head}</tr></thead><tbody>${list.map(o=>{
+    const W=n<=7?0:26;
+    body=list.length?`<div class="cal gantt ${big?'gbig':''}"><table style="${W?`min-width:${(isM()?170:210)+n*W}px;`:''}width:100%;table-layout:fixed"><colgroup><col style="width:${isM()?170:(n>7?210:260)}px">${days.map(()=>'<col>').join('')}</colgroup><thead><tr><th class="nm">Παραγγελία</th>${head}</tr></thead><tbody>${list.map(o=>{
       const [s,e]=orderRange(o); const a=Math.max(0,diffDays(start,s)), b=Math.min(n-1,diffDays(start,e)); const st=STATUS[o.status]||{};
-      return `<tr><td class="nm"><a class="lk" href="#order-${o.id}">${esc(o.number)}</a> <span class="xs muted">${esc(custName(o.customerId)||o.name||'')}</span></td><td class="cell" colspan="${n}"><div class="gbar ${st.c}" style="left:calc(${a}/${n}*100% + 2px);width:calc(${b-a+1}/${n}*100% - 4px)" data-act="go" data-href="#order-${o.id}" title="${esc(o.number)} · ${fmtD(o.start)}–${fmtD(o.end)} · ${esc(st.l)}">${esc(o.name||custName(o.customerId)||o.number)}</div></td></tr>`; }).join('')}</tbody></table></div>`
+      const cut1=s<start, cut2=e>end; const who=custName(o.customerId)||'';
+      const nm=o.name||who||o.number; const items=(o.lines||[]).filter(l=>l.pid).reduce((x,l)=>x+num(l.qty),0);
+      const tm=[o.startTime&&s>=start?`${o.startTime}`:'', o.endTime&&e<=end?`→ ${o.endTime}`:''].filter(Boolean).join(' ');
+      return `<tr><td class="nm"><a class="lk" href="#order-${o.id}">${esc(o.number)}</a> <span class="cnm">${esc(who||o.name||'')}</span>${big?`<div class="xs muted">${fmtD(o.start)}${o.end&&o.end!==o.start?' – '+fmtD(o.end):''} · ${esc(st.l||'')}</div>`:''}</td><td class="cell" colspan="${n}">${days.map((d,i)=>`<i class="gcol${[0,6].includes(dow(d))?' we':''}${d===t?' tdy':''}" style="left:calc(${i}/${n}*100%);width:calc(100%/${n})"></i>`).join('')}<div class="gbar ${st.c}${cut1?' cut1':''}${cut2?' cut2':''}" style="left:calc(${a}/${n}*100% + 3px);width:calc(${b-a+1}/${n}*100% - 6px)" data-act="go" data-href="#order-${o.id}" title="${esc(o.number)} · ${esc(nm)} · ${fmtD(o.start)}–${fmtD(o.end)} · ${esc(st.l)}"><b>${cut1?'◂ ':''}${esc(nm)}${cut2&&!big?' ▸':''}</b>${big?`<span class="gsub">${esc(o.number)}${who&&who!==nm?' · '+esc(who):''}${tm?' · '+esc(tm):''}${items?` · ${items} τεμ.`:''}${cut2?' · συνεχίζει ▸':''}</span>`:''}</div></td></tr>`; }).join('')}</tbody></table></div>`
       :'<div class="card empty"><b>Καμία παραγγελία σε αυτό το διάστημα</b></div>';
     body+=`<div class="row small muted" style="margin-top:10px;gap:14px">${Object.entries(STATUS).filter(([k])=>k!=='cancelled').map(([k,v])=>`<span>${pill(k)}</span>`).join('')}</div>`;
   } else {
@@ -24,12 +39,16 @@ VIEWS.calendar = () => {
     list=prodsSorted(list); let last=null, rows='';
     for(const p of list){ const cp=catPath(p.cat)||'Χωρίς κατηγορία'; if(cp!==last){ rows+=`<tr class="grp"><td class="nm">${esc(cp)}</td><td colspan="${n}"></td></tr>`; last=cp; }
       const st=stockOf(p.id);
-      rows+=`<tr><td class="nm"><a class="lk" href="#product-${p.id}">${esc(p.name)}</a> ${p.kind==='bundle'?'<span class="tag">B</span>':''}<div class="xs muted">${st} σύνολο</div></td>${days.map(d=>{ const f=freeOnDay(p.id,d); return `<td class="${f<=0?'c-bad':(st&&f<=Math.ceil(st*.2)?'c-low':'c-ok')} ${[0,6].includes(dow(d))?'we':''} ${d===t?'td':''}" title="${fmtD(d)}: ${f} διαθέσιμα">${f}</td>`; }).join('')}</tr>`; }
-    body=list.length?`<div class="cal"><table><thead><tr><th class="nm">Προϊόν</th>${head}</tr></thead><tbody>${rows}</tbody></table></div><div class="small muted" style="margin-top:8px">Ελεύθερα τεμάχια ανά ημέρα — αφαιρούνται κρατήσεις, παραγγελίες σε εξέλιξη και συντήρηση (όχι τα options).</div>`:'<div class="card empty"><b>Δεν υπάρχουν προϊόντα</b></div>';
+      rows+=`<tr><td class="nm"><a class="lk" href="#product-${p.id}">${esc(p.name)}</a> ${p.kind==='bundle'?'<span class="tag">B</span>':''}<div class="xs muted">${st} σύνολο</div></td>${days.map(d=>{ const f=freeOnDay(p.id,d); return `<td class="${f<=0?'c-bad':(st&&f<=Math.ceil(st*.2)?'c-low':'c-ok')} ${[0,6].includes(dow(d))?'we':''} ${d===t?'td':''}" title="${fmtD(d)}: ${f} διαθέσιμα">${big?`${f}<span class="xs muted">/${st}</span>`:f}</td>`; }).join('')}</tr>`; }
+    body=list.length?`<div class="cal ${big?'gbig':''}"><table style="width:100%;${n>7?`min-width:${(isM()?170:210)+n*30}px;`:''}table-layout:fixed"><colgroup><col style="width:${isM()?170:(n>7?210:260)}px">${days.map(()=>'<col>').join('')}</colgroup><thead><tr><th class="nm">Προϊόν</th>${head}</tr></thead><tbody>${rows}</tbody></table></div><div class="small muted" style="margin-top:8px">Ελεύθερα τεμάχια ανά ημέρα — αφαιρούνται κρατήσεις, παραγγελίες σε εξέλιξη και συντήρηση (όχι τα options).</div>`:'<div class="card empty"><b>Δεν υπάρχουν προϊόντα</b></div>';
   }
-  return `<div class="ph"><div><h1>Ημερολόγιο</h1><p class="sub">${fmtD(start)} – ${fmtD(end)}</p></div>${ctrl}</div>${body}`;
+  return `<div class="ph"><div><h1>Ημερολόγιο</h1><p class="sub">${title}</p></div>${ctrl}</div>${body}`;
 };
-ACT['cal-mv']=el=>{ UI.calStart=addDays(UI.calStart||addDays(today(),-2), +el.dataset.v); render(); };
+ACT['cal-view']=el=>{ UI.calView=el.dataset.v; try{ localStorage.setItem('calView',UI.calView); }catch(e){} render(); };
+ACT['cal-mv']=el=>{ const v=calView(), dir=+el.dataset.v; const {start}=calRange();
+  if(v==='month'){ const [y,m]=start.split('-').map(Number); const d=new Date(Date.UTC(y,m-1+dir,1)); UI.calStart=d.toISOString().slice(0,10); }
+  else UI.calStart=addDays(start, dir*(v==='day'?1:v==='3d'?3:7));
+  render(); };
 ACT['cal-today']=()=>{ UI.calStart=null; render(); };
 
 /* ---------- customers ---------- */
