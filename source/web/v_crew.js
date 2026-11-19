@@ -274,8 +274,6 @@ function drawAcl(){ const a=M.a, t=today();
   openModal(`<div class="dlg-h"><h2>Λίστα ατόμων & οχημάτων</h2><button class="icon" data-act="modal-close">✕</button></div>
   <div class="dlg-b">
     <label class="f">Από παραγγελία (προαιρετικό)<select data-acl="oid"><option value="">— Χωρίς παραγγελία —</option>${ords.map(o=>`<option value="${o.id}" ${a.oid===o.id?'selected':''}>${fmtD(o.start)} · ${esc(o.number)} · ${esc(o.name||custName(o.customerId)||'')}</option>`).join('')}</select></label>
-    <div class="f2"><label class="f">Εκδήλωση / τίτλος<input type="text" data-acl="title" value="${esc(a.title)}" placeholder="π.χ. Συναυλία Θεάτρου Πάτρας"></label><label class="f">Χώρος<input type="text" data-acl="venue" value="${esc(a.venue)}"></label></div>
-    <div class="f2"><label class="f">Από<input type="date" data-acl="start" value="${esc(a.start)}"></label><label class="f">Έως<input type="date" data-acl="end" value="${esc(a.end)}"></label></div>
     <div class="row between" style="margin-top:4px"><div class="small b">Προσωπικό <span class="faint">${a.crew.size} επιλεγμένα</span></div><div class="row" style="gap:6px"><button class="btn sm ghost" data-act="acl-all" data-k="crew">Όλοι</button><button class="btn sm ghost" data-act="acl-none" data-k="crew">Κανένας</button></div></div>
     <div class="aclbox">${people.length?people.map(pRow).join(''):'<div class="xs faint" style="padding:8px">Δεν υπάρχουν άτομα.</div>'}</div>
     <div class="row between" style="margin-top:8px"><div class="small b">Οχήματα <span class="faint">${a.veh.size} επιλεγμένα</span></div><div class="row" style="gap:6px"><button class="btn sm ghost" data-act="acl-all" data-k="veh">Όλα</button><button class="btn sm ghost" data-act="acl-none" data-k="veh">Κανένα</button></div></div>
@@ -294,4 +292,4 @@ ACT['acl-none']=el=>{ M.a[el.dataset.k]=new Set(); drawAclKeep(); };
 ACT['acl-pdf']=async()=>{ const a=M.a; if(!a.crew.size&&!a.veh.size) return toast('Διάλεξε άτομα ή οχήματα.', true);
   const people=crewSorted([...a.crew].map(id=>D.crew[id]).filter(Boolean)).sort((x,y)=>(x.name||'').localeCompare(y.name||'','el'));
   const vehs=[...a.veh].map(id=>D.vehicles[id]).filter(Boolean).sort((x,y)=>(x.plate||'').localeCompare(y.plate||'','el'));
-  await pdfAccessList({title:a.title, venue:a.venue, start:a.start, end:a.end, people, vehs}); };
+  await pdfAccessList({title:'', venue:'', start:'', end:'', people, vehs}); };
