@@ -120,7 +120,7 @@ async function createOrder(base){
 function myWipOrder(){ const me=UI.me&&UI.me.id; return sortBy(Object.values(D.orders).filter(o=>o.wip&&o.status==='concept'&&(!o.wipBy||!me||o.wipBy===me)), o=>o.updatedAt||o.createdAt||0).pop(); }
 ACT['new-order']=()=>{ if(!can('staff')) return toast('Δεν έχεις δικαίωμα.', true);
   const w=myWipOrder(); if(w){ if(location.hash!=='#order-'+w.id) location.hash='order-'+w.id; toast(`Συνέχεια της ${w.number} — ολοκλήρωσέ την με «Κράτηση» ή «Αποθήκευση στα πρόχειρα»`); return; }
-  newOrderModal(); };
+  noStart(''); };
 /* ---------- νέα παραγγελία: πρώτα αναζήτηση πελάτη ---------- */
 let NO={i:0, items:[]};
 function newOrderModal(){
