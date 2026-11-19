@@ -193,3 +193,24 @@ if(typeof SERVER!=='undefined'&&SERVER){
   printCrewWeek=ws=>pdfCrewWeek(ws);
   ACT['crew-link-print']=()=>{ const u=crewLinkURL(); if(u) pdfCrewPoster(u); };
 }
+
+/* λίστα ατόμων (ταυτότητα, ημ. γέννησης) & οχημάτων (πινακίδα, μήκος, ύψος) */
+async function pdfAccessList(x){
+  const dates=x.start?`${wdD(x.start)}${x.end&&x.end!==x.start?' – '+wdD(x.end):''}`:'';
+  const fn=`Λίστα προσωπικού & οχημάτων${x.title?' '+x.title:''}${x.start?' '+fmtD(x.start).replace(/\//g,'-'):''}.pdf`.replace(/[\\/:*?"<>|]/g,'');
+  await makePDF('Λίστα προσωπικού & οχημάτων', fn, async P=>{
+    const logo=await pdfLogo(); P.addPage(210,297);
+    const meta=[['Ημερομηνία',fmtD(today())]]; if(x.people.length) meta.push(['Άτομα',String(x.people.length)]); if(x.vehs.length) meta.push(['Οχήματα',String(x.vehs.length)]);
+    let y=pdfDocHead(P, logo, x.people.length&&x.vehs.length?'ΠΡΟΣΩΠΙΚΟ & ΟΧΗΜΑΤΑ':(x.vehs.length?'ΛΙΣΤΑ ΟΧΗΜΑΤΩΝ':'ΛΙΣΤΑ ΠΡΟΣΩΠΙΚΟΥ'), meta);
+    if(x.title||x.venue||dates){ y=pdfCards(P, y, [{lab:'Εκδήλωση', big:x.title||'—', lines:[x.venue?'Χώρος: '+x.venue:'', dates?{t:dates,b:true}:'']}])+7; }
+    const sect=(t)=>{ if(y>P.H-50){ P.addPage(P.W,P.H); y=16; } P.text(14,y+2,UP(t),{size:9,bold:true,color:PC.gold,spacing:1.2}); y+=5; };
+    if(x.people.length){ sect('Προσωπικό');
+      const rows=x.people.map((c,i)=>({h:8, draw:(C,yy)=>{ P.text(C[0].right,yy+5.3,String(i+1),{size:8.5,color:PC.mute,align:'right'}); P.text(C[1].left,yy+5.3,pdfSafe(c.name),{size:9.5,bold:true,maxW:C[1].w-4}); P.text(C[2].left,yy+5.3,pdfSafe(c.idNumber||'—'),{size:9.5}); P.text(C[3].left,yy+5.3,c.birthDate?fmtD(c.birthDate):'—',{size:9.5}); }}));
+      y=pdfTable(P,y,[{t:'#',w:10,align:'right'},{t:'Ονοματεπώνυμο',w:0},{t:'Αρ. ταυτότητας',w:44},{t:'Ημ. γέννησης',w:36}],rows,{zebra:true})+10; }
+    if(x.vehs.length){ sect('Οχήματα');
+      const m=v=>v===''||v==null?'—':num(v).toLocaleString('el-GR',{maximumFractionDigits:2})+' m';
+      const rows=x.vehs.map((v,i)=>({h:8, draw:(C,yy)=>{ P.text(C[0].right,yy+5.3,String(i+1),{size:8.5,color:PC.mute,align:'right'}); P.text(C[1].left,yy+5.3,pdfSafe(v.plate||'—'),{size:9.5,bold:true}); P.text(C[2].left,yy+5.3,pdfSafe(v.name||''),{size:9,color:'#444',maxW:C[2].w-4}); P.text(C[3].right,yy+5.3,m(v.length),{size:9.5,align:'right'}); P.text(C[4].right,yy+5.3,m(v.height),{size:9.5,align:'right'}); }}));
+      y=pdfTable(P,y,[{t:'#',w:10,align:'right'},{t:'Πινακίδα',w:36},{t:'Όχημα',w:0},{t:'Μήκος',w:28,align:'right'},{t:'Ύψος',w:28,align:'right'}],rows,{zebra:true}); }
+    pdfFooters(P);
+  });
+}

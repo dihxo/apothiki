@@ -82,7 +82,7 @@ var (
 // Collections editable through the generic API (users have their own endpoints).
 var editable = map[string]bool{
 	"categories": true, "products": true, "units": true, "customers": true,
-	"orders": true, "maintenance": true, "settings": true, "crew": true,
+	"orders": true, "maintenance": true, "settings": true, "crew": true, "vehicles": true,
 }
 
 func loadDB() {
@@ -99,7 +99,7 @@ func loadDB() {
 	if db.Counters == nil {
 		db.Counters = map[string]int64{}
 	}
-	for _, c := range []string{"categories", "products", "units", "customers", "orders", "maintenance", "crew", "settings", "users"} {
+	for _, c := range []string{"categories", "products", "units", "customers", "orders", "maintenance", "crew", "vehicles", "settings", "users"} {
 		if db.Colls[c] == nil {
 			db.Colls[c] = map[string]Doc{}
 		}
@@ -1034,7 +1034,7 @@ func hRestore(w http.ResponseWriter, r *http.Request, u Doc) {
 	if db.Counters == nil {
 		db.Counters = map[string]int64{}
 	}
-	for _, c := range []string{"categories", "products", "units", "customers", "orders", "maintenance", "crew", "settings", "users"} {
+	for _, c := range []string{"categories", "products", "units", "customers", "orders", "maintenance", "crew", "vehicles", "settings", "users"} {
 		if db.Colls[c] == nil {
 			db.Colls[c] = map[string]Doc{}
 		}

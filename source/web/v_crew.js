@@ -12,9 +12,9 @@ function rateLabel(v, basis){ return num(v) ? `${money(num(v))} ${basis==='hour'
 
 /* ---------- σελίδα ---------- */
 VIEWS.crew = () => {
-  const tabs=`<div class="tabs">${[['people','Άτομα'],['schedule','Πρόγραμμα']].map(([k,l])=>`<button class="${UI.crewTab===k?'on':''}" data-act="tab" data-k="crewTab" data-v="${k}">${l}</button>`).join('')}</div>`;
-  const head=`<div class="ph"><div><h1>Συνεργείο</h1><p class="sub">Μόνιμο προσωπικό, εξωτερικοί συνεργάτες και πρόγραμμα εργασιών</p></div><div class="row">${can('staff')?`<button class="btn keep-m" data-act="crew-link">🔗 Σύνδεσμος για το προσωπικό</button><button class="btn pri" data-act="crew-new">+ Νέο άτομο</button>`:''}</div></div>`;
-  return head+tabs+(UI.crewTab==='schedule'?crewSchedule():crewPeople());
+  const tabs=`<div class="tabs">${[['people','Άτομα'],['vehicles','Οχήματα'],['schedule','Πρόγραμμα']].map(([k,l])=>`<button class="${UI.crewTab===k?'on':''}" data-act="tab" data-k="crewTab" data-v="${k}">${l}</button>`).join('')}</div>`;
+  const head=`<div class="ph"><div><h1>Συνεργείο</h1><p class="sub">Μόνιμο προσωπικό, εξωτερικοί συνεργάτες και πρόγραμμα εργασιών</p></div><div class="row">${can('staff')&&!NOPRICE()?`<button class="btn keep-m" data-act="acl-open">📋 Λίστα ατόμων & οχημάτων (PDF)</button>`:''}${can('staff')?`<button class="btn keep-m" data-act="crew-link">🔗 Σύνδεσμος για το προσωπικό</button>${UI.crewTab==='vehicles'?'<button class="btn pri" data-act="veh-new">+ Νέο όχημα</button>':'<button class="btn pri" data-act="crew-new">+ Νέο άτομο</button>'}`:''}</div></div>`;
+  return head+tabs+(UI.crewTab==='schedule'?crewSchedule():UI.crewTab==='vehicles'?crewVehicles():crewPeople());
 };
 function crewPeople(){
   const t=today(); const all=Object.values(D.crew);
@@ -231,3 +231,67 @@ ACT['crew-link-new']=()=>confirmBox('Νέος σύνδεσμος;', 'Ο τωρι
 ACT['crew-link-print']=()=>{ const url=crewLinkURL();
   printHTML('Πρόγραμμα συνεργείου', `<div style="text-align:center;padding-top:20mm">${LOGO?`<img src="${LOGO}" style="height:30mm">`:''}<h1 style="font-size:28pt;margin:14mm 0 4mm">Το πρόγραμμά σου</h1><div style="font-size:14pt;color:#555">Σκάναρε με την κάμερα του κινητού και πάτα το όνομά σου</div><div style="width:110mm;margin:12mm auto">${qrSVG(url,400)}</div><div style="font-size:9pt;color:#888;word-break:break-all">${esc(url)}</div></div>`); };
 ACT['crew-mylink']=async el=>{ const url=crewLinkURL(el.dataset.id); if(!url) return toast('Δημιούργησε πρώτα τον σύνδεσμο από το «🔗 Σύνδεσμος για το προσωπικό».', true); if(el.dataset.how==='share'&&navigator.share){ try{ await navigator.share({title:'Το πρόγραμμά σου', url}); }catch(e){} } else copyText(url); };
+
+/* ---------- οχήματα ---------- */
+function fmtM(v){ return v===''||v==null?'—':String(num(v).toLocaleString('el-GR',{maximumFractionDigits:2}))+' m'; }
+function vehSorted(){ return sortBy(Object.values(D.vehicles||{}), x=>(x.inactive?'1':'0')+(x.name||'')); }
+function crewVehicles(){
+  const list=vehSorted();
+  if(!list.length) return `<div class="card empty"><b>Δεν έχεις προσθέσει οχήματα ακόμη</b>Πρόσθεσε τα οχήματα της εταιρείας με πινακίδα, μήκος και ύψος.${can('staff')?'<div style="margin-top:12px"><button class="btn pri" data-act="veh-new">+ Νέο όχημα</button></div>':''}</div>`;
+  if(isM()) return `<div class="card p0"><div class="mlist">${list.map(x=>`<a class="mrow" href="#" data-act="veh-edit" data-id="${x.id}"><span class="cav" style="background:#555;margin:0">🚚</span><div class="mrow-m"><div class="mrow-n">${esc(x.plate||'—')} · ${esc(x.name||'')}</div><div class="mrow-s">Μήκος ${fmtM(x.length)} · Ύψος ${fmtM(x.height)}</div></div></a>`).join('')}</div></div>`;
+  return `<div class="card p0"><div class="tw"><table><thead><tr><th>Όχημα</th><th>Πινακίδα</th><th class="num">Μήκος</th><th class="num">Ύψος</th><th>Σημειώσεις</th></tr></thead><tbody>${list.map(x=>`<tr class="click" data-act="veh-edit" data-id="${x.id}"><td><b>${esc(x.name||'—')}</b>${x.inactive?' <span class="tag">Ανενεργό</span>':''}</td><td class="mono"><b>${esc(x.plate||'')}</b></td><td class="num">${fmtM(x.length)}</td><td class="num">${fmtM(x.height)}</td><td class="small muted">${esc(x.notes||'')}</td></tr>`).join('')}</tbody></table></div></div>`;
+}
+ACT['veh-new']=()=>vehModal(null);
+ACT['veh-edit']=(el,e)=>{ if(e) e.preventDefault(); vehModal(el.dataset.id); };
+function vehModal(id){ const x=id?deepCopy(D.vehicles[id]):{id:null,name:'',plate:'',length:'',height:'',notes:''}; M={type:'veh', x, redraw:drawVehModal}; drawVehModal(); }
+function drawVehModal(){ const x=M.x, ro=!can('staff');
+  openModal(`<div class="dlg-h"><h2>${x.id?esc(x.plate||x.name):'Νέο όχημα'}</h2><button class="icon" data-act="modal-close">✕</button></div>
+  <div class="dlg-b">
+    <div class="f2"><label class="f">Όχημα (μάρκα / μοντέλο)<input type="text" data-vh="name" value="${esc(x.name||'')}" placeholder="π.χ. Mercedes Sprinter" autofocus ${ro?'disabled':''}></label>
+      <label class="f">Πινακίδα *<input type="text" data-vh="plate" value="${esc(x.plate||'')}" placeholder="π.χ. ΑΧΗ 1234" style="text-transform:uppercase" ${ro?'disabled':''}></label></div>
+    <div class="f2"><label class="f">Μήκος (μέτρα)<input type="number" min="0" step="0.01" data-vh="length" value="${esc(x.length??'')}" placeholder="π.χ. 6,9" ${ro?'disabled':''}></label>
+      <label class="f">Ύψος (μέτρα)<input type="number" min="0" step="0.01" data-vh="height" value="${esc(x.height??'')}" placeholder="π.χ. 2,8" ${ro?'disabled':''}></label></div>
+    <label class="f">Σημειώσεις<textarea data-vh="notes" ${ro?'disabled':''} placeholder="π.χ. φορτηγό 3,5 τ., ράμπα">${esc(x.notes||'')}</textarea></label>
+    ${x.id&&!ro?`<label class="row" style="gap:8px;font-size:13.5px"><input type="checkbox" data-vh-ck="inactive" ${x.inactive?'checked':''}> Ανενεργό (δεν εμφανίζεται στις λίστες)</label>`:''}
+  </div>
+  <div class="dlg-f">${x.id&&can('admin')?'<button class="btn dangerous" data-act="veh-del" style="margin-right:auto">Διαγραφή</button>':''}<button class="btn" data-act="modal-close">${ro?'Κλείσιμο':'Άκυρο'}</button>${ro?'':'<button class="btn pri" data-act="veh-save" data-primary>Αποθήκευση</button>'}</div>`); }
+ON_INPUT.push(el=>{ if(el.dataset.vh!==undefined&&M&&M.type==='veh'){ M.x[el.dataset.vh]=el.value; return true; } return false; });
+ON_CHANGE.push(el=>{ if(M&&M.type==='veh'){ if(el.dataset.vh!==undefined){ M.x[el.dataset.vh]=el.value; return true; } if(el.dataset.vhCk){ M.x[el.dataset.vhCk]=el.checked; return true; } } return false; });
+ACT['veh-save']=async()=>{ const x=M.x; const plate=(x.plate||'').trim().toUpperCase(); if(!plate&&!(x.name||'').trim()) return toast('Συμπλήρωσε πινακίδα.', true);
+  const doc={name:(x.name||'').trim(), plate, length:x.length===''||x.length==null?'':num(x.length), height:x.height===''||x.height==null?'':num(x.height), notes:x.notes||'', inactive:!!x.inactive};
+  if(await put('vehicles', x.id||uid('vh'), doc, 'Αποθηκεύτηκε: '+(plate||doc.name))) closeModal(); };
+ACT['veh-del']=()=>{ const x=M.x; confirmBox(`Διαγραφή «${x.plate||x.name}»;`, 'Θα διαγραφεί οριστικά.', 'Διαγραφή', async()=>{ await del('vehicles', x.id, 'Διαγράφηκε: '+(x.plate||x.name)); }); };
+
+/* ---------- λίστα ατόμων & οχημάτων (PDF) ---------- */
+ACT['acl-open']=()=>{ M={type:'acl', a:{oid:'', title:'', venue:'', start:'', end:'', crew:new Set(), veh:new Set(), showAll:false}, redraw:drawAcl}; drawAcl(); };
+function drawAcl(){ const a=M.a, t=today();
+  const ords=sortBy(Object.values(D.orders).filter(o=>o.status!=='cancelled'&&o.start&&(o.end||o.start)>=addDays(t,-7)), o=>o.start).slice(0,80);
+  const people=crewSorted(Object.values(D.crew).filter(c=>!c.inactive||a.crew.has(c.id)));
+  const vehs=vehSorted().filter(x=>!x.inactive||a.veh.has(x.id));
+  const pRow=c=>{ const miss=[!c.idNumber&&'ταυτότητα', !c.birthDate&&'ημ. γέννησης'].filter(Boolean);
+    return `<label class="aclr"><input type="checkbox" data-acl-c="${c.id}" ${a.crew.has(c.id)?'checked':''}><span class="grow"><b>${esc(c.name)}</b> <span class="xs muted">${esc(c.role||'')}</span></span><span class="xs ${miss.length?'':'muted'}" style="${miss.length?'color:var(--orange)':''}">${miss.length?'Λείπει: '+miss.join(', '):`${esc(c.idNumber)} · ${fmtD(c.birthDate)}`}</span></label>`; };
+  const vRow=x=>`<label class="aclr"><input type="checkbox" data-acl-v="${x.id}" ${a.veh.has(x.id)?'checked':''}><span class="grow"><b class="mono">${esc(x.plate||'—')}</b> <span class="xs muted">${esc(x.name||'')}</span></span><span class="xs muted">${fmtM(x.length)} × ${fmtM(x.height)}</span></label>`;
+  openModal(`<div class="dlg-h"><h2>Λίστα ατόμων & οχημάτων</h2><button class="icon" data-act="modal-close">✕</button></div>
+  <div class="dlg-b">
+    <label class="f">Από παραγγελία (προαιρετικό)<select data-acl="oid"><option value="">— Χωρίς παραγγελία —</option>${ords.map(o=>`<option value="${o.id}" ${a.oid===o.id?'selected':''}>${fmtD(o.start)} · ${esc(o.number)} · ${esc(o.name||custName(o.customerId)||'')}</option>`).join('')}</select></label>
+    <div class="f2"><label class="f">Εκδήλωση / τίτλος<input type="text" data-acl="title" value="${esc(a.title)}" placeholder="π.χ. Συναυλία Θεάτρου Πάτρας"></label><label class="f">Χώρος<input type="text" data-acl="venue" value="${esc(a.venue)}"></label></div>
+    <div class="f2"><label class="f">Από<input type="date" data-acl="start" value="${esc(a.start)}"></label><label class="f">Έως<input type="date" data-acl="end" value="${esc(a.end)}"></label></div>
+    <div class="row between" style="margin-top:4px"><div class="small b">Προσωπικό <span class="faint">${a.crew.size} επιλεγμένα</span></div><div class="row" style="gap:6px"><button class="btn sm ghost" data-act="acl-all" data-k="crew">Όλοι</button><button class="btn sm ghost" data-act="acl-none" data-k="crew">Κανένας</button></div></div>
+    <div class="aclbox">${people.length?people.map(pRow).join(''):'<div class="xs faint" style="padding:8px">Δεν υπάρχουν άτομα.</div>'}</div>
+    <div class="row between" style="margin-top:8px"><div class="small b">Οχήματα <span class="faint">${a.veh.size} επιλεγμένα</span></div><div class="row" style="gap:6px"><button class="btn sm ghost" data-act="acl-all" data-k="veh">Όλα</button><button class="btn sm ghost" data-act="acl-none" data-k="veh">Κανένα</button></div></div>
+    <div class="aclbox">${vehs.length?vehs.map(vRow).join(''):`<div class="xs faint" style="padding:8px">Δεν υπάρχουν οχήματα — πρόσθεσέ τα από την καρτέλα «Οχήματα».</div>`}</div>
+  </div>
+  <div class="dlg-f"><button class="btn" data-act="modal-close">Άκυρο</button><button class="btn pri" data-act="acl-pdf" data-primary>📄 Δημιουργία PDF</button></div>`); }
+ON_CHANGE.push(el=>{ if(!M||M.type!=='acl') return false; const a=M.a;
+  if(el.dataset.aclC){ el.checked?a.crew.add(el.dataset.aclC):a.crew.delete(el.dataset.aclC); drawAclKeep(); return true; }
+  if(el.dataset.aclV){ el.checked?a.veh.add(el.dataset.aclV):a.veh.delete(el.dataset.aclV); drawAclKeep(); return true; }
+  if(el.dataset.acl==='oid'){ a.oid=el.value; const o=D.orders[a.oid]; if(o){ a.title=o.name||custName(o.customerId)||o.number; a.venue=o.venue||''; a.start=o.start||''; a.end=o.end||o.start||''; for(const x of o.crew||[]) if(x.cid&&D.crew[x.cid]) a.crew.add(x.cid); } drawAcl(); return true; }
+  if(el.dataset.acl){ a[el.dataset.acl]=el.value; return true; } return false; });
+ON_INPUT.push(el=>{ if(M&&M.type==='acl'&&el.dataset.acl&&el.dataset.acl!=='oid'){ M.a[el.dataset.acl]=el.value; return true; } return false; });
+function drawAclKeep(){ const b=document.querySelector('.dlg-b'); const sc=b?b.scrollTop:0; const boxes=[...document.querySelectorAll('.aclbox')].map(x=>x.scrollTop); drawAcl(); const b2=document.querySelector('.dlg-b'); if(b2) b2.scrollTop=sc; document.querySelectorAll('.aclbox').forEach((x,i)=>x.scrollTop=boxes[i]||0); }
+ACT['acl-all']=el=>{ const a=M.a; if(el.dataset.k==='crew') Object.values(D.crew).filter(c=>!c.inactive).forEach(c=>a.crew.add(c.id)); else vehSorted().filter(x=>!x.inactive).forEach(x=>a.veh.add(x.id)); drawAclKeep(); };
+ACT['acl-none']=el=>{ M.a[el.dataset.k]=new Set(); drawAclKeep(); };
+ACT['acl-pdf']=async()=>{ const a=M.a; if(!a.crew.size&&!a.veh.size) return toast('Διάλεξε άτομα ή οχήματα.', true);
+  const people=crewSorted([...a.crew].map(id=>D.crew[id]).filter(Boolean)).sort((x,y)=>(x.name||'').localeCompare(y.name||'','el'));
+  const vehs=[...a.veh].map(id=>D.vehicles[id]).filter(Boolean).sort((x,y)=>(x.plate||'').localeCompare(y.plate||'','el'));
+  await pdfAccessList({title:a.title, venue:a.venue, start:a.start, end:a.end, people, vehs}); };

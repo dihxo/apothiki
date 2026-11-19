@@ -607,3 +607,8 @@ body.noprice .pr{display:none!important}
 .gantt .gcol.tdy{background:#fff9e3}
 .cal table[style*=fixed] .nm{min-width:0;max-width:none;overflow:hidden;text-overflow:ellipsis}
 .cal table[style*=fixed] th,.cal table[style*=fixed] td{min-width:0}
+
+.aclbox{border:1px solid var(--line);border-radius:10px;max-height:240px;overflow:auto;margin-top:6px}
+.aclr{display:flex;align-items:center;gap:10px;padding:8px 12px;border-bottom:1px solid var(--soft);cursor:pointer;font-size:13.5px}
+.aclr:last-child{border-bottom:0}.aclr:hover{background:var(--soft)}
+.aclr input{width:18px;height:18px;flex:none}

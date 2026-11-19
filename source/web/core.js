@@ -1,7 +1,7 @@
 /* ===================== CORE: state, api, helpers, availability ===================== */
 'use strict';
 const D = { // server data
-  version: 0, categories:{}, products:{}, units:{}, customers:{}, orders:{}, maintenance:{}, crew:{}, settings:{}, users:{}, counters:{}
+  version: 0, categories:{}, products:{}, units:{}, customers:{}, orders:{}, maintenance:{}, crew:{}, vehicles:{}, settings:{}, users:{}, counters:{}
 };
 const UI = {
   me:null, ready:false, online:true, route:'dashboard',
@@ -68,7 +68,7 @@ async function api(path, body, method){
 }
 async function loadState(){
   const s = await api('/api/state');
-  for(const k of ['categories','products','units','customers','orders','maintenance','crew','settings','users']){
+  for(const k of ['categories','products','units','customers','orders','maintenance','crew','vehicles','settings','users']){
     const m={}; for(const d of (s.data[k]||[])) if(d&&d.id) m[d.id]=d; D[k]=m;
   }
   D.counters = s.counters||{}; D.version = s.version; bump();
