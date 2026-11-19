@@ -98,10 +98,12 @@ function render(){
   const af=document.activeElement, afId=(af&&af.id&&af.dataset&&af.dataset.enter)?af.id:null;
   const bindFocus = af && af.dataset && af.dataset.bind ? {b:af.dataset.bind, pos:af.selectionStart} : null;
   const qeFocus = af && af.dataset && af.dataset.qe ? {qe:af.dataset.qe, id:af.dataset.id, v:af.value} : null;
+  const ab=$('#oAddRes'), ai=$('#oAdd'); const addKeep=(ab&&ai&&ab.style.display!=='none')?{q:ai.value, sc:ab.scrollTop, shown:ADD_SHOWN, foc:document.activeElement===ai}:null;
   $('#view').innerHTML = (!can('staff')?`<div class="banner blue">Έχεις πρόσβαση μόνο για ανάγνωση.</div>`:'') + html;
   if(afId){ const n=document.getElementById(afId); if(n) n.focus(); }
   if(qeFocus){ const n=document.querySelector(`.qedit[data-qe="${qeFocus.qe}"][data-id="${qeFocus.id}"]`); if(n){ n.value=qeFocus.v; n.focus(); } }
   if(bindFocus){ const n=document.querySelector(`[data-bind="${bindFocus.b}"]`); if(n){ n.focus(); try{ n.setSelectionRange(bindFocus.pos,bindFocus.pos); }catch(e){} } }
+  if(addKeep){ const i=$('#oAdd'), b=$('#oAddRes'); if(i&&b){ i.value=addKeep.q; drawAddResults(addKeep.q); b.style.display=''; while(ADD_SHOWN<addKeep.shown && ADD_SHOWN<ADD_LIST.length) addMore(); b.scrollTop=addKeep.sc; if(addKeep.foc) i.focus({preventScroll:true}); } }
   const auto=$('#view [data-autofocus]'); if(auto && !modalOpen() && !bindFocus && !afId) auto.focus();
 }
 
@@ -133,10 +135,20 @@ function gsearchEnter(){
 }
 
 /* ---------- events ---------- */
+// Επιλογή προϊόντος από τη λίστα με το ποντίκι: γίνεται στο pointerdown, ώστε να μη χάνεται
+// αν η σελίδα ξαναζωγραφιστεί (συγχρονισμός) ανάμεσα στο πάτημα και το άφημα του κουμπιού.
+let SWALLOW_ADD_CLICK=false;
+document.addEventListener('pointerdown', e=>{
+  if(e.pointerType!=='mouse' || e.button!==0) return;
+  const a=e.target.closest && e.target.closest('#oAddRes a[data-act="o-add"]'); if(!a) return;
+  e.preventDefault(); SWALLOW_ADD_CLICK=true; setTimeout(()=>{ SWALLOW_ADD_CLICK=false; },1500);
+  try{ ACT['o-add'](a, e); }catch(err){ console.error(err); }
+}, true);
 document.addEventListener('click', async e=>{
   if(!e.target.closest('.dd')) $$('.dd.open').forEach(d=>d.classList.remove('open'));
   if(!e.target.closest('.gsearch') && $('#gres')) $('#gres').style.display='none';
-  if(!e.target.closest('.pick-add')) $$('.pick-add .gres').forEach(g=>g.style.display='none');
+  if(!e.target.closest('.pick-add') && e.target.isConnected) $$('.pick-add .gres').forEach(g=>g.style.display='none');
+  if(SWALLOW_ADD_CLICK && e.target.closest && (e.target.closest('#oAddRes')||!e.target.isConnected)){ SWALLOW_ADD_CLICK=false; return; }
   if(e.target.closest('#gres a')){ $('#gs').value=''; $('#gres').style.display='none'; }
   const el=e.target.closest('[data-act]'); if(!el) return;
   const a=el.dataset.act;
