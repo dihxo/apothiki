@@ -86,8 +86,7 @@ async function pdfOrderDoc(o, kind){
     const descW=182-cols.reduce((a,c)=>a+(c.w||0),0)-4;
     const ci=k=>cols.findIndex(c=>c.t===k); let n=0; const rows=[];
     for(const l of o.lines){ const p=D.products[l.pid]; n++; const nn=n;
-      const sub=[]; if(l.priceType!=='flat') sub.push(l.tiered&&tt.days>1?`1η ημέρα ${money(l.price)} · ${TIER_TXT}`:hasExtra(l)&&tt.days>1?`1η ημέρα ${money(l.price)} · κάθε επόμενη ${money(l.extraPrice)}`:`${money(l.price)} / ημέρα`); else sub.push('Κατ\' αποκοπή');
-      if(p&&p.kind==='bundle') sub.push((p.components||[]).map(cc=>prodName(cc.pid)+' ×'+num(cc.qty)).join(', '));
+      const sub=[]; // στις προσφορές/έγγραφα: μόνο οι σημειώσεις της γραμμής
       if(l.note) sub.push(l.note);
       const nl=P.wrap(pdfSafe(p?p.name:l.name), descW, 9.6, true), sl=P.wrap(pdfSafe(sub.join(' · ')), descW, 7.8);
       const im=imgs[l.id||l.pid]; const h=Math.max(hasImg?14:0, nl.length*4.3+sl.length*3.5+4.5);

@@ -616,8 +616,7 @@ function printOrderDoc(o, kind){
     const hasDisc=o.lines.some(l=>num(l.discount)); const hasImg=o.lines.some(l=>imgSrc(D.products[l.pid]));
     let n=0;
     const lines=o.lines.map(l=>{ const p=D.products[l.pid]; n++; const img=imgSrc(p);
-      const sub=[]; if(l.priceType!=='flat'){ sub.push(l.tiered&&tt.days>1?`1η ημέρα ${money(l.price)} · ${TIER_TXT}`:hasExtra(l)&&tt.days>1?`1η ημέρα ${money(l.price)} · κάθε επόμενη ${money(l.extraPrice)}`:`${money(l.price)} / ημέρα`); } else sub.push('Κατ\' αποκοπή');
-      if(p&&p.kind==='bundle') sub.push((p.components||[]).map(c=>esc(prodName(c.pid))+' ×'+num(c.qty)).join(', '));
+      const sub=[]; // μόνο οι σημειώσεις της γραμμής
       if(l.note) sub.push('<i>'+esc(l.note)+'</i>');
       return `<tr><td class="dn">${n}</td>${hasImg?`<td class="dimg">${img?`<img src="${esc(img)}" alt="">`:''}</td>`:''}<td><div class="dit">${esc(p?p.name:l.name)}</div><div class="dsub">${sub.join(' · ')}</div></td>
         <td class="r">${num(l.qty)}</td><td class="r">${l.priceType==='flat'?'—':tt.days}</td><td class="r">${money(lineUnitPeriod(l,tt.days))}</td>${hasDisc?`<td class="r">${num(l.discount)?num(l.discount)+'%':''}</td>`:''}<td class="r b">${money(lineTotal(l,tt.days))}</td></tr>`; }).join('');
