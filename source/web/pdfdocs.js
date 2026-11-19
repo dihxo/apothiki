@@ -205,8 +205,8 @@ async function pdfAccessList(x){
     if(x.title||x.venue||dates){ y=pdfCards(P, y, [{lab:'Εκδήλωση', big:x.title||'—', lines:[x.venue?'Χώρος: '+x.venue:'', dates?{t:dates,b:true}:'']}])+7; }
     const sect=(t)=>{ if(y>P.H-50){ P.addPage(P.W,P.H); y=16; } P.text(14,y+2,UP(t),{size:9,bold:true,color:PC.gold,spacing:1.2}); y+=5; };
     if(x.people.length){ sect('Προσωπικό');
-      const rows=x.people.map((c,i)=>({h:8, draw:(C,yy)=>{ P.text(C[0].right,yy+5.3,String(i+1),{size:8.5,color:PC.mute,align:'right'}); P.text(C[1].left,yy+5.3,pdfSafe(c.name),{size:9.5,bold:true,maxW:C[1].w-4}); P.text(C[2].left,yy+5.3,pdfSafe(c.idNumber||'—'),{size:9.5}); P.text(C[3].left,yy+5.3,c.birthDate?fmtD(c.birthDate):'—',{size:9.5}); }}));
-      y=pdfTable(P,y,[{t:'#',w:10,align:'right'},{t:'Ονοματεπώνυμο',w:0},{t:'Αρ. ταυτότητας',w:44},{t:'Ημ. γέννησης',w:36}],rows,{zebra:true})+10; }
+      const rows=x.people.map((c,i)=>({h:8, draw:(C,yy)=>{ P.text(C[0].right,yy+5.3,String(i+1),{size:8.5,color:PC.mute,align:'right'}); P.text(C[1].left,yy+5.3,pdfSafe(c.name),{size:9.5,bold:true,maxW:C[1].w-4}); P.text(C[2].left,yy+5.3,pdfSafe(c.idNumber||'—'),{size:9.5}); P.text(C[3].left,yy+5.3,c.birthDate?fmtD(c.birthDate):'—',{size:9.5}); P.text(C[4].left,yy+5.3,pdfSafe(c.phone||'—'),{size:9.5}); }}));
+      y=pdfTable(P,y,[{t:'#',w:10,align:'right'},{t:'Ονοματεπώνυμο',w:0},{t:'Αρ. ταυτότητας',w:36},{t:'Ημ. γέννησης',w:30},{t:'Τηλέφωνο',w:36}],rows,{zebra:true})+10; }
     if(x.vehs.length){ sect('Οχήματα');
       const m=v=>v===''||v==null?'—':num(v).toLocaleString('el-GR',{maximumFractionDigits:2})+' m';
       const rows=x.vehs.map((v,i)=>({h:8, draw:(C,yy)=>{ P.text(C[0].right,yy+5.3,String(i+1),{size:8.5,color:PC.mute,align:'right'}); P.text(C[1].left,yy+5.3,pdfSafe(v.plate||'—'),{size:9.5,bold:true}); P.text(C[2].left,yy+5.3,pdfSafe(v.name||''),{size:9,color:'#444',maxW:C[2].w-4}); P.text(C[3].right,yy+5.3,m(v.length),{size:9.5,align:'right'}); P.text(C[4].right,yy+5.3,m(v.height),{size:9.5,align:'right'}); }}));

@@ -269,7 +269,7 @@ function drawAcl(){ const a=M.a, t=today();
   const people=crewSorted(Object.values(D.crew).filter(c=>!c.inactive||a.crew.has(c.id)));
   const vehs=vehSorted().filter(x=>!x.inactive||a.veh.has(x.id));
   const pRow=c=>{ const miss=[!c.idNumber&&'ταυτότητα', !c.birthDate&&'ημ. γέννησης'].filter(Boolean);
-    return `<label class="aclr"><input type="checkbox" data-acl-c="${c.id}" ${a.crew.has(c.id)?'checked':''}><span class="grow"><b>${esc(c.name)}</b> <span class="xs muted">${esc(c.role||'')}</span></span><span class="xs ${miss.length?'':'muted'}" style="${miss.length?'color:var(--orange)':''}">${miss.length?'Λείπει: '+miss.join(', '):`${esc(c.idNumber)} · ${fmtD(c.birthDate)}`}</span></label>`; };
+    return `<label class="aclr"><input type="checkbox" data-acl-c="${c.id}" ${a.crew.has(c.id)?'checked':''}><span class="grow"><b>${esc(c.name)}</b> <span class="xs muted">${esc(c.role||'')}</span></span><span class="xs ${miss.length?'':'muted'}" style="${miss.length?'color:var(--orange)':''}">${miss.length?'Λείπει: '+miss.join(', '):`${esc(c.idNumber)} · ${fmtD(c.birthDate)}${c.phone?' · '+esc(c.phone):''}`}</span></label>`; };
   const vRow=x=>`<label class="aclr"><input type="checkbox" data-acl-v="${x.id}" ${a.veh.has(x.id)?'checked':''}><span class="grow"><b class="mono">${esc(x.plate||'—')}</b> <span class="xs muted">${esc(x.name||'')}</span></span><span class="xs muted">${fmtM(x.length)} × ${fmtM(x.height)}</span></label>`;
   openModal(`<div class="dlg-h"><h2>Λίστα ατόμων & οχημάτων</h2><button class="icon" data-act="modal-close">✕</button></div>
   <div class="dlg-b">
