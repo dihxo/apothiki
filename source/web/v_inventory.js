@@ -23,7 +23,7 @@ VIEWS.products = () => {
     <td><div class="pcell">${prodImg(p,38)}<div><a class="lk" href="#product-${p.id}">${esc(p.name)}</a> ${p.kind==='bundle'?'<span class="tag">Bundle</span>':''}${mnt?` <span class="pill red" title="Σε συντήρηση">🔧 ${mnt}</span>`:''}<div class="xs muted mono">${esc(p.sku)}</div></div></div></td>
     <td class="small c-type">${p.kind==='bundle'?'Bundle':(p.tracking==='serial'?'Σειριακοί':'Ποσότητα')}</td>
     <td class="num">${can('staff')&&p.kind!=='bundle'&&p.tracking!=='serial'?`<input type="number" min="0" step="1" class="qedit" data-qe="qty" data-id="${p.id}" value="${esc(p.qty??0)}" title="Απόθεμα — γράψε και πάτα Enter">`:st}</td><td class="num"><span class="avb ${avCls(fr)}">${fr}</span></td>
-    <td class="num small pr" style="white-space:nowrap">${can('staff')?`<span class="qprice"><input type="number" min="0" step="0.01" class="qedit" data-qe="price" data-id="${p.id}" value="${esc(p.price??'')}" placeholder="${p.kind==='bundle'?'αυτόμ.':'0'}" title="Τιμή 1ης ημέρας (€, χωρίς ΦΠΑ) — γράψε και πάτα Enter"><span class="xs muted" title="${p.priceType!=='flat'&&productExtra(p)!==''?'Επόμενες ημέρες: '+money(productExtra(p)):''}">€${p.priceType==='flat'?'':'/ημ.'}</span></span>`:priceLabel(p)}</td>
+    <td class="num small pr" style="white-space:nowrap">${can('staff')?`<span class="qprice"><input type="number" min="0" step="0.01" class="qedit" data-qe="price" data-id="${p.id}" value="${esc(p.price??'')}" placeholder="${p.kind==='bundle'?'αυτόμ.':'0'}" title="Τιμή 1ης ημέρας (€, χωρίς ΦΠΑ) — γράψε και πάτα Enter"><span class="xs muted" title="${productTiered(p)?'Κλιμακωτά: '+TIER_TXT:p.priceType!=='flat'&&productExtra(p)!==''?'Επόμενες ημέρες: '+money(productExtra(p)):''}">€${p.priceType==='flat'?'':'/ημ.'}</span></span>`:priceLabel(p)}</td>
     <td class="small c-loc">${esc(p.location||'')}</td>
     <td class="num" style="white-space:nowrap"><button class="icon" data-act="qr" data-code="${esc(p.sku)}" data-name="${esc(p.name)}" title="QR">▣</button>${can('staff')?`<button class="icon" data-act="edit-product" data-id="${p.id}" title="Επεξεργασία">✎</button>`:''}</td></tr>`; }).join('');
   return `<div class="ph"><div><h1>Προϊόντα</h1><p class="sub">Εξοπλισμός, bundles και απόθεμα</p></div>
@@ -105,7 +105,7 @@ VIEWS.product = id => {
   <div class="grid g4" style="margin-bottom:16px">
     <div class="card stat"><div class="n">${st}</div><div class="l">${p.kind==='bundle'?'Σετ που συντίθενται':'Συνολικό απόθεμα'}</div></div>
     <div class="card stat"><div class="n av ${avCls(fr)}">${fr}</div><div class="l">Διαθέσιμα σήμερα</div></div>
-    <div class="card stat"><div class="n">${money(productPrice(p))}</div><div class="l">${p.priceType==='flat'?'Σταθερή τιμή':(productExtra(p)===''?'Τιμή / ημέρα':`1η ημέρα · επόμενες ${money(productExtra(p))}`)}</div></div>
+    <div class="card stat"><div class="n">${money(productPrice(p))}</div><div class="l">${p.priceType==='flat'?'Σταθερή τιμή':productTiered(p)?'1η ημέρα · μετά κλιμακωτά':(productExtra(p)===''?'Τιμή / ημέρα':`1η ημέρα · επόμενες ${money(productExtra(p))}`)}</div></div>
     <div class="card stat"><div class="n">${orders.filter(o=>HOLD.includes(o.status)&&orderRange(o)[1]>=t).length}</div><div class="l">Επόμενες κρατήσεις</div></div>
   </div>
   <div class="split">
@@ -178,7 +178,7 @@ ACT['pm-sugg-pick']=async el=>{
 };
 
 function productModal(id, kind){
-  const p = id ? deepCopy(D.products[id]) : {id:null, kind:kind||'item', tracking:'bulk', name:'', sku:'', cat:(UI.prodCat&&D.categories[UI.prodCat])?UI.prodCat:'', qty:1, price:'', priceType:'day', extraMode:'pct', extraValue:10, replacement:'', location:'', supplier:'', notes:'', components:[], _units:1};
+  const p = id ? deepCopy(D.products[id]) : {id:null, kind:kind||'item', tracking:'bulk', name:'', sku:'', cat:(UI.prodCat&&D.categories[UI.prodCat])?UI.prodCat:'', qty:1, price:'', priceType:'day', extraMode:'tier', extraValue:'', replacement:'', location:'', supplier:'', notes:'', components:[], _units:1};
   p.components=p.components||[];
   M={type:'product', p, redraw:drawProductModal}; drawProductModal();
   if(SERVER&&!imgSrc(p)&&(p.name||'').trim().length>=3) findPhotos(false);
@@ -209,8 +209,8 @@ function drawProductModal(){
       ${!isB?`<label class="f pr">Αξία αντικατάστασης €<input type="number" min="0" step="0.01" data-pm="replacement" value="${esc(p.replacement)}"></label>`:''}
     </div>
     ${p.priceType!=='flat'?`<div class="card pr" style="padding:12px 14px;background:#fafbfc"><div class="small b" style="margin-bottom:8px">Χρέωση επόμενων ημερών</div>
-      <div class="f3"><label class="f">Από τη 2η ημέρα και μετά<select data-pm="extraMode" data-redraw="1"><option value="same" ${!p.extraMode||p.extraMode==='same'?'selected':''}>Ίδια τιμή με την 1η</option><option value="amount" ${p.extraMode==='amount'?'selected':''}>Άλλη τιμή (€ / ημέρα)</option><option value="pct" ${p.extraMode==='pct'?'selected':''}>Ποσοστό της 1ης (%)</option></select></label>
-      ${p.extraMode==='amount'||p.extraMode==='pct'?`<label class="f">${p.extraMode==='pct'?'% της τιμής 1ης ημέρας':'€ ανά επόμενη ημέρα'}<input type="number" min="0" step="0.01" data-pm="extraValue" data-redraw-change="1" value="${esc(p.extraValue??'')}" placeholder="${p.extraMode==='pct'?'π.χ. 50':'π.χ. 10'}"></label>`:'<div></div>'}
+      <div class="f3"><label class="f">Από τη 2η ημέρα και μετά<select data-pm="extraMode" data-redraw="1"><option value="same" ${!p.extraMode||p.extraMode==='same'?'selected':''}>Ίδια τιμή με την 1η</option><option value="amount" ${p.extraMode==='amount'?'selected':''}>Άλλη τιμή (€ / ημέρα)</option><option value="pct" ${p.extraMode==='pct'?'selected':''}>Ποσοστό της 1ης (%)</option><option value="tier" ${p.extraMode==='tier'?'selected':''}>Κλιμακωτή (20% · 15% · 10% · 5%…)</option></select></label>
+      ${p.extraMode==='tier'?`<div class="xs muted" style="align-self:end;padding-bottom:10px">${TIER_TXT} της τιμής 1ης ημέρας</div>`:p.extraMode==='amount'||p.extraMode==='pct'?`<label class="f">${p.extraMode==='pct'?'% της τιμής 1ης ημέρας':'€ ανά επόμενη ημέρα'}<input type="number" min="0" step="0.01" data-pm="extraValue" data-redraw-change="1" value="${esc(p.extraValue??'')}" placeholder="${p.extraMode==='pct'?'π.χ. 50':'π.χ. 10'}"></label>`:'<div></div>'}
       <div class="small muted" style="align-self:end;padding-bottom:6px">${extraPreview(p)}</div></div></div>`:''}
     <div class="f2"><label class="f">Θέση στην αποθήκη<input type="text" data-pm="location" value="${esc(p.location)}" placeholder="π.χ. Ράφι Β3"></label>${!isB?`<label class="f">Προμηθευτής<input type="text" data-pm="supplier" value="${esc(p.supplier)}"></label>`:''}</div>
     ${isB?`<div><div class="row between" style="margin-bottom:8px"><b>Περιεχόμενα</b><button class="btn sm" data-act="pm-comp-add">+ Προϊόν</button></div><div class="grid" style="gap:8px">${p.components.length?p.components.map((c,i)=>`<div class="comp-row"><select data-pmc="${i}" data-f="pid"><option value="">— Επίλεξε —</option>${opts(c.pid)}</select><input type="number" min="1" step="1" data-pmc="${i}" data-f="qty" value="${esc(c.qty)}"><button class="icon" data-act="pm-comp-del" data-i="${i}">✕</button></div>`).join(''):'<div class="small muted">Η διαθεσιμότητα του bundle υπολογίζεται αυτόματα από τα περιεχόμενά του.</div>'}</div></div>`:''}
@@ -341,7 +341,7 @@ document.addEventListener('dragleave', e=>{ const z=e.target.closest&&e.target.c
 document.addEventListener('drop', e=>{ const z=e.target.closest&&e.target.closest('#imgDrop'); if(!z) return; e.preventDefault(); z.classList.remove('over'); const f=[...(e.dataTransfer?.files||[])].find(f=>/^image\//.test(f.type)); if(f) setProductImage(f); else toast('Σύρε ένα αρχείο εικόνας (ή αντέγραψε την εικόνα και πάτα Ctrl+V).', true); });
 ON_INPUT.push(el=>{ if(el.dataset.pm==='name'){ const a=$('#gimgLink'); if(a) a.href=googleImgUrl(el.value); } return false; });
 
-function extraPreview(p){ const tmp={...p, price:p.price===''?'':num(p.price), extraValue:p.extraValue===''?'':num(p.extraValue)}; const pr=productPrice(tmp); if(!pr) return ''; const ex=productExtra(tmp); const e=ex===''?pr:ex; return `Παράδειγμα: 1 ημ. ${money(pr)} · 3 ημ. ${money(pr+2*e)} · 7 ημ. ${money(pr+6*e)}`; }
+function extraPreview(p){ const tmp={...p, price:p.price===''?'':num(p.price), extraValue:p.extraValue===''?'':num(p.extraValue)}; const pr=productPrice(tmp); if(!pr) return ''; if(productTiered(tmp)) return `Παράδειγμα: 1 ημ. ${money(pr)} · 2 ημ. ${money(r2(pr*tierFactor(2)))} · 3 ημ. ${money(r2(pr*tierFactor(3)))} · 5 ημ. ${money(r2(pr*tierFactor(5)))} · 7 ημ. ${money(r2(pr*tierFactor(7)))}`; const ex=productExtra(tmp); const e=ex===''?pr:ex; return `Παράδειγμα: 1 ημ. ${money(pr)} · 3 ημ. ${money(pr+2*e)} · 7 ημ. ${money(pr+6*e)}`; }
 ON_CHANGE.push(el=>{ if(M&&M.type==='product'&&(el.dataset.redraw||el.dataset.redrawChange)){ M.p[el.dataset.pm]=el.value; drawProductModal(); return true; } return false; });
 ON_CHANGE.push(el=>{ if(el.dataset.mcat){ UI.prodCat=el.value; UI.mProdN=60; render(); return true; } return false; });
 

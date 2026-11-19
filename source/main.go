@@ -139,6 +139,28 @@ func migrate() {
 		saveDBLocked()
 		log.Printf("migration extra10: %d products", n)
 	}
+	if db.Counters["mig_tier"] == 0 {
+		if b, err := json.Marshal(db); err == nil {
+			bd := filepath.Join(dataDir, "backups")
+			os.MkdirAll(bd, 0o755)
+			os.WriteFile(filepath.Join(bd, "pre-tier-"+time.Now().Format("20060102-150405")+".json"), b, 0o644)
+		}
+		n := 0
+		for _, p := range db.Colls["products"] {
+			if fmt.Sprint(p["priceType"]) == "flat" {
+				continue
+			}
+			p["extraMode"] = "tier"
+			p["extraValue"] = ""
+			p["updatedAt"] = now()
+			n++
+		}
+		db.Counters["mig_tier"] = 1
+		db.Version++
+		addLogLocked("Σύστημα", fmt.Sprintf("Κλιμακωτή χρέωση σε %d προϊόντα: 2η ημ. 20%%, 3η 15%%, 4η 10%%, 5η+ 5%%", n))
+		saveDBLocked()
+		log.Printf("migration tier: %d products", n)
+	}
 	if db.Counters["mig_backline"] == 0 {
 		if b, err := json.Marshal(db); err == nil {
 			bd := filepath.Join(dataDir, "backups")
@@ -413,7 +435,13 @@ func linePriceFromCatalog(l map[string]any) {
 	}
 	l["priceType"] = pt
 	val, _ := numv(p["extraValue"])
+	delete(l, "tiered")
 	switch p["extraMode"] {
+	case "tier":
+		if pt == "day" {
+			l["tiered"] = true
+		}
+		delete(l, "extraPrice")
 	case "pct":
 		l["extraPrice"] = math.Round(pr*val) / 100
 	case "amount":
@@ -439,8 +467,8 @@ func techMerge(coll string, d, old Doc) Doc {
 	case "products":
 		keep("price", "extraMode", "extraValue", "replacement", "cost", "purchasePrice", "value")
 		if old == nil {
-			d["extraMode"] = "pct"
-			d["extraValue"] = 10
+			d["extraMode"] = "tier"
+			d["extraValue"] = ""
 		}
 	case "units":
 		keep("price", "cost", "purchasePrice", "value")
@@ -469,7 +497,7 @@ func techMerge(coll string, d, old Doc) Doc {
 					continue
 				}
 				if ol := oldLines[fmt.Sprint(l["id"])]; ol != nil && fmt.Sprint(ol["pid"]) == fmt.Sprint(l["pid"]) {
-					for _, k := range []string{"price", "extraPrice", "discount", "priceType"} {
+					for _, k := range []string{"price", "extraPrice", "discount", "priceType", "tiered"} {
 						delete(l, k)
 						if v, ok := ol[k]; ok {
 							l[k] = v
@@ -480,6 +508,7 @@ func techMerge(coll string, d, old Doc) Doc {
 				} else { // ελεύθερη γραμμή από τεχνικό: χωρίς τιμή (τη συμπληρώνει το γραφείο)
 					l["price"] = 0
 					delete(l, "extraPrice")
+					delete(l, "tiered")
 					delete(l, "discount")
 				}
 			}

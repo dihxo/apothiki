@@ -221,19 +221,25 @@ function unitState(u){
 
 /* ---------- pricing ---------- */
 function orderDays(o){ return o.start&&o.end ? Math.max(1, diffDays(o.start,o.end)+1) : 1; }
-function hasExtra(l){ return l.priceType!=='flat' && l.extraPrice!=='' && l.extraPrice!=null && num(l.extraPrice)!==num(l.price); }
-function lineUnitPeriod(l, days){ if(l.priceType==='flat') return num(l.price); const ex=hasExtra(l)?num(l.extraPrice):num(l.price); return num(l.price)+ex*Math.max(0,days-1); }
+function hasExtra(l){ return l.priceType!=='flat' && !l.tiered && l.extraPrice!=='' && l.extraPrice!=null && num(l.extraPrice)!==num(l.price); }
+/* κλιμακωτή χρέωση: 1η ημέρα 100%, 2η 20%, 3η 15%, 4η 10%, 5η και κάθε επόμενη 5% */
+const TIER_PCT=[20,15,10,5];
+function tierPct(dayIdx){ return dayIdx<=0?100:(TIER_PCT[dayIdx-1]??TIER_PCT[TIER_PCT.length-1]); }
+function tierFactor(days){ let f=0; for(let i=0;i<Math.max(1,days);i++) f+=tierPct(i); return f/100; }
+const TIER_TXT='2η ημ. 20% · 3η 15% · 4η 10% · 5η και μετά 5%';
+function lineUnitPeriod(l, days){ if(l.priceType==='flat') return num(l.price); if(l.tiered) return r2(num(l.price)*tierFactor(days)); const ex=hasExtra(l)?num(l.extraPrice):num(l.price); return num(l.price)+ex*Math.max(0,days-1); }
 function lineTotal(l, days){ return r2(lineUnitPeriod(l,days)*num(l.qty)*(1-num(l.discount)/100)); }
 /* τιμή επόμενων ημερών προϊόντος ('' = ίδια με την 1η) */
+function productTiered(p){ return !!p && p.priceType!=='flat' && p.extraMode==='tier'; }
 function productExtra(p){
-  if(!p || p.priceType==='flat') return '';
+  if(!p || p.priceType==='flat' || p.extraMode==='tier') return '';
   const pr=productPrice(p);
   if(p.extraMode==='amount' && p.extraValue!=='' && p.extraValue!=null) return r2(num(p.extraValue));
   if(p.extraMode==='pct' && p.extraValue!=='' && p.extraValue!=null) return r2(pr*num(p.extraValue)/100);
   if(p.kind==='bundle' && (p.price===''||p.price==null)){ let sum=0, diff=false; for(const c of p.components||[]){ const cp=D.products[c.pid]; if(!cp) continue; const e=productExtra(cp); if(e!==''){ diff=true; sum+=e*num(c.qty); } else sum+=productPrice(cp)*num(c.qty); } return diff?r2(sum):''; }
   return '';
 }
-function priceLabel(p){ const pr=productPrice(p); if(p.priceType==='flat') return money(pr); const ex=productExtra(p); return ex===''?money(pr)+'/ημ.':`${money(pr)} 1η ημ. · ${money(ex)} επόμ.`; }
+function priceLabel(p){ const pr=productPrice(p); if(p.priceType==='flat') return money(pr); if(productTiered(p)) return `${money(pr)} 1η ημ. · κλιμακωτά`; const ex=productExtra(p); return ex===''?money(pr)+'/ημ.':`${money(pr)} 1η ημ. · ${money(ex)} επόμ.`; }
 /* ---------- συνεργείο ---------- */
 const CREW_ROLES=['Ηχολήπτης','Τεχνικός ήχου','Φωτιστής','Τεχνικός φωτισμού','Τεχνικός video / LED','Rigger','Stage hand','Οδηγός','Βοηθός','Υπεύθυνος παραγωγής','Άλλο'];
 const PAYT={day:'ανά ημέρα', hour:'ανά ώρα', flat:'κατ\' αποκοπή'};
