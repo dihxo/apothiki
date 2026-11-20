@@ -268,9 +268,8 @@ function drawAcl(){ const a=M.a, t=today();
   const ords=sortBy(Object.values(D.orders).filter(o=>o.status!=='cancelled'&&o.start&&(o.end||o.start)>=addDays(t,-7)), o=>o.start).slice(0,80);
   const people=crewSorted(Object.values(D.crew).filter(c=>!c.inactive||a.crew.has(c.id)));
   const vehs=vehSorted().filter(x=>!x.inactive||a.veh.has(x.id));
-  const pRow=c=>{ const miss=[!c.idNumber&&'ταυτότητα', !c.birthDate&&'ημ. γέννησης'].filter(Boolean);
-    return `<label class="aclr"><input type="checkbox" data-acl-c="${c.id}" ${a.crew.has(c.id)?'checked':''}><span class="grow"><b>${esc(c.name)}</b> <span class="xs muted">${esc(c.role||'')}</span></span><span class="xs ${miss.length?'':'muted'}" style="${miss.length?'color:var(--orange)':''}">${miss.length?'Λείπει: '+miss.join(', '):`${esc(c.idNumber)} · ${fmtD(c.birthDate)}${c.phone?' · '+esc(c.phone):''}`}</span></label>`; };
-  const vRow=x=>`<label class="aclr"><input type="checkbox" data-acl-v="${x.id}" ${a.veh.has(x.id)?'checked':''}><span class="grow"><b class="mono">${esc(x.plate||'—')}</b> <span class="xs muted">${esc(x.name||'')}</span></span><span class="xs muted">${fmtM(x.length)} × ${fmtM(x.height)}</span></label>`;
+  const pRow=c=>`<label class="aclr"><input type="checkbox" data-acl-c="${c.id}" ${a.crew.has(c.id)?'checked':''}><span class="grow"><b>${esc(c.name)}</b></span></label>`;
+  const vRow=x=>`<label class="aclr"><input type="checkbox" data-acl-v="${x.id}" ${a.veh.has(x.id)?'checked':''}><span class="grow"><b class="mono">${esc(x.plate||'—')}</b> <span class="muted">${esc(x.name||'')}</span></span></label>`;
   openModal(`<div class="dlg-h"><h2>Λίστα ατόμων & οχημάτων</h2><button class="icon" data-act="modal-close">✕</button></div>
   <div class="dlg-b">
     <label class="f">Από παραγγελία (προαιρετικό)<select data-acl="oid"><option value="">— Χωρίς παραγγελία —</option>${ords.map(o=>`<option value="${o.id}" ${a.oid===o.id?'selected':''}>${fmtD(o.start)} · ${esc(o.number)} · ${esc(o.name||custName(o.customerId)||'')}</option>`).join('')}</select></label>
