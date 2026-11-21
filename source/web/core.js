@@ -256,6 +256,14 @@ function crewBusy(cid, start, end, exceptOrder, exceptAid){ // συγκρούσ�
   const p=D.crew[cid]; for(const x of (p&&p.off)||[]){ if(x.start<=end&&(x.end||x.start)>=start) out.push({type:'off', off:x}); }
   return out;
 }
+/* ομαδοποίηση γραμμών ανά κύρια κατηγορία */
+function mainCatOf(catId){ let c=D.categories[catId], g=0; while(c&&c.parent&&D.categories[c.parent]&&g++<10) c=D.categories[c.parent]; return c?c.id:''; }
+function lineGroup(l){ if(l.pid){ const p=D.products[l.pid]; return (p&&mainCatOf(p.cat))||'_misc'; } return (l.cat&&D.categories[l.cat])?mainCatOf(l.cat):'_misc'; }
+function groupName(g){ return g==='_misc'?'Λοιπά':((D.categories[g]?.name||'Λοιπά').replace(/^\s*\d+\s*[.)]\s*/,'')); }
+function useGroups(o){ return o.groupCats!==false; }
+function orderGroups(o){ const days=orderDays(o), m=new Map();
+  (o.lines||[]).forEach((l,i)=>{ const g=lineGroup(l); if(!m.has(g)) m.set(g,{id:g, name:groupName(g), sort:g==='_misc'?'￿':(D.categories[g]?.name||''), idx:[], total:0}); const x=m.get(g); x.idx.push(i); x.total+=lineTotal(l,days); });
+  return [...m.values()].map(x=>({...x,total:r2(x.total)})).sort((a,b)=>a.sort.localeCompare(b.sort,'el',{numeric:true})); }
 function orderTotals(o){
   const days=orderDays(o); let sub=0;
   for(const l of o.lines||[]) sub+=lineTotal(l,days);

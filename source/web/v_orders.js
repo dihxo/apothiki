@@ -190,7 +190,7 @@ VIEWS.order = id => {
     else if(d.status==='started') primary=`<button class="btn green" data-act="o-return">⤵ Επιστροφή</button>`;
     else if(d.status==='cancelled') primary=`<button class="btn" data-act="o-status" data-v="concept">Επαναφορά σε πρόχειρο</button>`;
   }
-  const lineRows=d.lines.map((l,i)=>{
+  const rowsArr=d.lines.map((l,i)=>{
     const p=l.pid?D.products[l.pid]:null;
     if(l.pid && !p) return `<tr data-li="${i}"><td colspan="7" class="muted">Το προϊόν διαγράφηκε ${ro?'':`<button class="icon" data-act="o-line-del" data-i="${i}">✕</button>`}</td></tr>`;
     let avail='<span class="faint">—</span>', problem='', sub='';
@@ -202,7 +202,7 @@ VIEWS.order = id => {
       else if(shMap[l.pid]) problem=`<div class="xs" style="color:var(--red)">Λείπουν ${shMap[l.pid].missing} τεμ. στις ημερομηνίες</div>`;
     }
     const name = p ? `<div class="line-name pcell" style="gap:8px">${prodImg(p,34)}<span><a class="lk" href="#product-${p.id}">${esc(p.name)}</a> ${p.kind==='bundle'?'<span class="tag">Bundle</span>':''}${p.tracking==='serial'?'<span class="tag">S/N</span>':''}</span></div>${ro?(l.note?`<div class="xs muted">${esc(l.note)}</div>`:''):`<input type="text" value="${esc(l.note||'')}" data-ol="${i}" data-f="note" placeholder="Σημείωση γραμμής" class="xs" style="border:none;padding:2px 0;width:100%;background:transparent;color:var(--muted)">`}`
-      : `<input type="text" value="${esc(l.name)}" data-ol="${i}" data-f="name" placeholder="Περιγραφή (π.χ. Μεταφορά, Τεχνικός)" ${ro?'disabled':''} style="width:100%">`;
+      : `<input type="text" value="${esc(l.name)}" data-ol="${i}" data-f="name" placeholder="Περιγραφή (π.χ. Μεταφορά, Τεχνικός)" ${ro?'disabled':''} style="width:100%">${useGroups(d)&&!ro?`<select data-ol="${i}" data-f="cat" class="xs" style="margin-top:4px;padding:2px 4px;font-size:11.5px;max-width:200px" title="Σε ποια κατηγορία της προσφοράς θα μπει"><option value="">Κατηγορία: Λοιπά</option>${sortBy(Object.values(D.categories).filter(c=>!c.parent||!D.categories[c.parent]),c=>c.name).map(c=>`<option value="${c.id}" ${l.cat===c.id?'selected':''}>Κατηγορία: ${esc(groupName(c.id))}</option>`).join('')}</select>`:''}`;
     return `<tr data-li="${i}"><td><div class="lrow">${!ro&&d.lines.length>1?'<span class="drag" title="Σύρε για αλλαγή σειράς" aria-label="Μετακίνηση">⋮⋮</span>':''}<div class="grow" style="min-width:0">${name}${sub}${problem}</div></div></td>
       <td>${avail}</td>
       <td>${ro?`<b>${num(l.qty)}</b>`:`<span class="qbox"><button data-act="o-qty" data-i="${i}" data-d="-1">−</button><input type="number" min="0" step="1" value="${esc(l.qty)}" data-ol="${i}" data-f="qty"><button data-act="o-qty" data-i="${i}" data-d="1">+</button></span>`}</td>
@@ -210,7 +210,11 @@ VIEWS.order = id => {
       <td class="pr"><input type="number" class="pct" min="0" max="100" step="1" value="${esc(l.discount||'')}" placeholder="0%" data-ol="${i}" data-f="discount" ${ro?'disabled':''} title="Έκπτωση γραμμής %"></td>
       <td class="num b pr" style="white-space:nowrap">${money(lineTotal(l,tt.days))}</td>
       <td class="num">${ro?'':`<button class="icon" data-act="o-line-del" data-i="${i}" title="Αφαίρεση">✕</button>`}</td></tr>`;
-  }).join('');
+  });
+  const grp=useGroups(d), groups=grp?orderGroups(d):[];
+  const lineBody=grp&&groups.length?groups.map(g=>`<tbody class="ogrp"><tr class="ghead"><td colspan="7"><div class="gh"><span>${esc(g.name)}</span> <span class="xs muted">${g.idx.length} ${g.idx.length===1?'γραμμή':'γραμμές'}</span></div></td></tr>${g.idx.map(i=>rowsArr[i]).join('')}<tr class="gsum pr"><td colspan="7"><div class="gs"><span>Σύνολο ${esc(g.name)}</span><b>${money(g.total)}</b></div></td></tr></tbody>`).join('')
+    : `<tbody>${rowsArr.join('')}</tbody>`;
+  const catOpts=sortBy(Object.values(D.categories).filter(c=>!c.parent||!D.categories[c.parent]),c=>c.name);
   const custOpts=sortBy(Object.values(D.customers),c=>c.company||c.name||'').map(c=>`<option value="${c.id}" ${c.id===d.customerId?'selected':''}>${esc(c.company||c.name)}${c.company&&c.name?' — '+esc(c.name):''}</option>`).join('');
   const showFlow = ['reserved','started','stopped'].includes(d.status) && d.lines.some(l=>l.pid);
   const ps=payStatus(d);
@@ -251,10 +255,10 @@ VIEWS.order = id => {
         ${ro?'':`<div style="padding:12px 16px;border-bottom:1px solid var(--line)" class="row addrow">
           <div class="pick-add grow"><input type="search" id="oAdd" placeholder="🔍 ${isM()?'Αναζήτηση προϊόντος ή κωδικού…':'Αναζήτηση για προσθήκη προϊόντων ή σάρωση κωδικού + Enter'}" data-enter="o-add-code" autocomplete="off" style="width:100%"><div class="gres" id="oAddRes" style="display:none"></div></div>
           <button class="btn" data-act="o-cam-add" title="Σάρωση με κάμερα">📷</button><button class="btn" data-act="cp-open" title="Επιλογή προϊόντων ανά κατηγορία">📂 Από κατηγορίες</button><button class="btn" data-act="o-custom">+ Ελεύθερη γραμμή</button></div>`}
-        ${d.lines.length?`<div class="tw"><table><thead><tr><th class="ocol-name">Προϊόν</th><th>Διαθέσιμα</th><th>Ποσότητα</th><th class="pr">Χρέωση</th><th class="pr">Έκπτ.</th><th class="num pr">Σύνολο</th><th></th></tr></thead><tbody>${lineRows}</tbody></table></div>`
+        ${d.lines.length?`<div class="tw"><table><thead><tr><th class="ocol-name">Προϊόν</th><th>Διαθέσιμα</th><th>Ποσότητα</th><th class="pr">Χρέωση</th><th class="pr">Έκπτ.</th><th class="num pr">Σύνολο</th><th></th></tr></thead>${lineBody}</table></div><div class="grpbar">${ro?'':`<label class="row" style="gap:6px;cursor:pointer"><input type="checkbox" data-act="o-grp-tog" ${grp?'checked':''}> Ομαδοποίηση ανά κατηγορία (και στην προσφορά)</label>`}</div>`
         :'<div class="empty" style="padding:30px">Δεν έχουν προστεθεί προϊόντα ακόμη.</div>'}
         <div class="sum pr" style="padding:12px 16px;border-top:1px solid var(--line);max-width:360px;margin-left:auto">
-          ${tt.crewCharge?`<div><span class="muted">Εξοπλισμός</span><span>${money(tt.equip)}</span></div><div><span class="muted">Συνεργείο</span><span>${money(tt.crewCharge)}</span></div>`:''}
+          ${grp&&groups.length>1?groups.map(g=>`<div><span class="muted">${esc(g.name)}</span><span>${money(g.total)}</span></div>`).join('')+(tt.crewCharge?`<div><span class="muted">Συνεργείο</span><span>${money(tt.crewCharge)}</span></div>`:''):(tt.crewCharge?`<div><span class="muted">Εξοπλισμός</span><span>${money(tt.equip)}</span></div><div><span class="muted">Συνεργείο</span><span>${money(tt.crewCharge)}</span></div>`:'')}
           <div><span class="muted">Υποσύνολο</span><span>${money(tt.sub)}</span></div>
           <div><span class="muted">Έκπτωση <input type="number" class="pct" min="0" max="100" step="0.01" data-o="discount" value="${esc(d.discount||'')}" placeholder="0" ${ro?'disabled':''} style="padding:3px 6px"> %</span><span>−${money(tt.disc)}</span></div>
           <div><span class="muted">Καθαρή αξία</span><span>${money(tt.net)}</span></div>
@@ -385,6 +389,7 @@ ENTER['o-add-code']=v=>{ const f=findCode(v); let p=f&&f.product;
   if(!p) return toast('Δεν βρέθηκε προϊόν: '+v, true);
   addProductLine(p.id); toast('+1 '+p.name); setTimeout(()=>{ const i=$('#oAdd'); if(i) i.focus(); },30); };
 ACT['o-cam-add']=()=>openCamera(code=>{ const f=findCode(code); if(f&&f.product){ addProductLine(f.product.id); toast('+1 '+f.product.name); } else toast('Άγνωστος κωδικός: '+code, true); }, 'Προσθήκη προϊόντων');
+ACT['o-grp-tog']=()=>{ const d=UI.draft; if(!d) return; d.groupCats=!useGroups(d); dirty(); };
 ACT['o-custom']=()=>{ UI.draft.lines.push({id:uid('ln'), pid:'', name:'', qty:1, price:0, priceType:'flat', discount:0}); dirty(); };
 ACT['o-line-del']=el=>{ UI.draft.lines.splice(+el.dataset.i,1); dirty(); };
 /* ---------- αλλαγή σειράς γραμμών με σύρσιμο (ποντίκι & αφή) ---------- */
@@ -396,11 +401,12 @@ ACT['o-line-del']=el=>{ UI.draft.lines.splice(+el.dataset.i,1); dirty(); };
   document.addEventListener('pointermove', e=>{ if(!drag||e.pointerId!==drag.id) return; e.preventDefault();
     const rows=[...drag.tb.querySelectorAll('tr[data-li]')].filter(r=>r!==drag.tr);
     let before=null; for(const r of rows){ const b=r.getBoundingClientRect(); if(e.clientY<b.top+b.height/2){ before=r; break; } }
-    if(before) { if(drag.tr.nextElementSibling!==before) drag.tb.insertBefore(drag.tr, before); } else if(drag.tb.lastElementChild!==drag.tr) drag.tb.appendChild(drag.tr);
+    const tail=drag.tb.querySelector('tr.gsum');
+    if(before) { if(drag.tr.nextElementSibling!==before) drag.tb.insertBefore(drag.tr, before); } else if(tail){ if(drag.tr.nextElementSibling!==tail) drag.tb.insertBefore(drag.tr, tail); } else if(drag.tb.lastElementChild!==drag.tr) drag.tb.appendChild(drag.tr);
     // αυτόματη κύλιση κοντά στις άκρες
     if(e.clientY<90) window.scrollBy(0,-12); else if(e.clientY>innerHeight-140) window.scrollBy(0,12); }, {passive:false});
   const end=e=>{ if(!drag||(e.pointerId!==undefined&&e.pointerId!==drag.id)) return; const d=UI.draft; drag.tr.classList.remove('dragging'); document.body.classList.remove('noselect');
-    const order=[...drag.tb.querySelectorAll('tr[data-li]')].map(r=>+r.dataset.li); drag=null;
+    const order=[...(drag.tb.closest('table')||drag.tb).querySelectorAll('tr[data-li]')].map(r=>+r.dataset.li); drag=null;
     if(!d||order.every((v,i)=>v===i)) return; d.lines=order.map(i=>d.lines[i]).filter(Boolean); dirty(); };
   document.addEventListener('pointerup', end); document.addEventListener('pointercancel', end);
 })();

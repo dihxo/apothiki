@@ -39,6 +39,7 @@ function pdfTable(P, y, cols, rows, o={}){ // cols:[{t,w,align}] (w σε mm, έ�
   head(); let zi=0;
   for(const r of rows){
     if(y+r.h>P.H-(o.bottom||22)){ P.addPage(P.W,P.H); y=16; head(); }
+    if(r.plain){ r.draw(xs.map((x,i)=>({x, w:cols[i]._w, right:x+cols[i]._w-2, left:x+2, center:x+cols[i]._w/2})), y); y+=r.h; zi=0; continue; }
     if(r.sec){ P.rect(L,y,R-L,6,{fill:PC.sec}); P.text(L+2,y+4.2,UP(r.sec),{size:6.8,bold:true,color:'#7a5b00',spacing:0.8}); y+=6; zi=0; continue; }
     if(o.zebra&&(zi++%2)) P.rect(L,y,R-L,r.h,{fill:PC.zebra});
     r.draw(xs.map((x,i)=>({x, w:cols[i]._w, right:x+cols[i]._w-2, left:x+2, center:x+cols[i]._w/2})), y);
@@ -85,7 +86,10 @@ async function pdfOrderDoc(o, kind){
     const cols=[{t:'#',w:7,align:'center'}]; if(hasImg) cols.push({t:'',w:14}); cols.push({t:'Περιγραφή',w:0},{t:'Ποσ.',w:12,align:'right'},{t:'Ημέρες',w:15,align:'right'},{t:'Τιμή μον.',w:23,align:'right'}); if(hasDisc) cols.push({t:'Έκπτ.',w:13,align:'right'}); cols.push({t:'Αξία',w:24,align:'right'});
     const descW=182-cols.reduce((a,c)=>a+(c.w||0),0)-4;
     const ci=k=>cols.findIndex(c=>c.t===k); let n=0; const rows=[];
-    for(const l of o.lines){ const p=D.products[l.pid]; n++; const nn=n;
+    const grp=useGroups(o), groups=grp?orderGroups(o):[{id:'',idx:o.lines.map((_,i)=>i)}];
+    const sumRow=(label,val)=>({plain:true, h:7.5, draw:(C,y)=>{ P.rect(14,y,182,7.5,{fill:'#f6f1df'}); P.text(C[ci('Τιμή μον.')].right,y+5,UP(label),{size:7.4,bold:true,color:'#7a5b00',align:'right',spacing:0.4}); P.text(C[ci('Αξία')].right,y+5.1,money(val),{size:9.4,bold:true,align:'right'}); P.line(14,y+7.5,196,y+7.5,{color:'#d8cfa8',lw:0.25}); }});
+    for(const g of groups){ if(grp) rows.push({sec:g.name, h:6});
+    for(const l of g.idx.map(i=>o.lines[i])){ const p=D.products[l.pid]; n++; const nn=n;
       const sub=[]; // στις προσφορές/έγγραφα: μόνο οι σημειώσεις της γραμμής
       if(l.note) sub.push(l.note);
       const nl=P.wrap(pdfSafe(p?p.name:l.name), descW, 9.6, true), sl=P.wrap(pdfSafe(sub.join(' · ')), descW, 7.8);
@@ -96,16 +100,23 @@ async function pdfOrderDoc(o, kind){
         P.text(C[ci('Ποσ.')].right,mid+1.2,String(num(l.qty)),{size:9,align:'right'}); P.text(C[ci('Ημέρες')].right,mid+1.2,l.priceType==='flat'?'—':String(tt.days),{size:9,align:'right'});
         P.text(C[ci('Τιμή μον.')].right,mid+1.2,money(lineUnitPeriod(l,tt.days)),{size:9,align:'right'}); if(hasDisc) P.text(C[ci('Έκπτ.')].right,mid+1.2,num(l.discount)?num(l.discount)+'%':'',{size:9,align:'right'});
         P.text(C[ci('Αξία')].right,mid+1.2,money(lineTotal(l,tt.days)),{size:9.2,bold:true,align:'right'}); }}); }
+    if(grp) rows.push(sumRow('Σύνολο '+g.name, g.total)); }
     const crewList=(o.crew||[]).filter(a=>a.bill!==false&&crewCharge(a)>0);
     if(crewList.length){ rows.push({sec:'Τεχνικό προσωπικό', h:6});
       for(const a of crewList){ const cr=D.crew[a.cid]||{}; const b=cr.payType||'day'; const qn=crewQty(b,a); n++; const nn=n;
         rows.push({h:11, draw:(C,y)=>{ const di=hasImg?2:1; P.text(C[0].center,y+6.7,String(nn),{size:7.8,color:PC.faint,align:'center'}); P.text(C[di].left,y+5,pdfSafe(a.role||cr.role||'Τεχνικός'),{size:9.6,bold:true}); P.text(C[di].left,y+8.8,`${wdD(a.start)}${a.end&&a.end!==a.start?' → '+wdD(a.end):''} · ${a.from||''}–${a.to||''}`,{size:7.8,color:'#8a8a8e'});
-          P.text(C[ci('Ποσ.')].right,y+6.7,'1',{size:9,align:'right'}); P.text(C[ci('Ημέρες')].right,y+6.7,b==='flat'?'—':(b==='hour'?qn+' ώρ.':String(qn)),{size:9,align:'right'}); P.text(C[ci('Τιμή μον.')].right,y+6.7,money(crewCharge(a)),{size:9,align:'right'}); P.text(C[ci('Αξία')].right,y+6.7,money(crewCharge(a)),{size:9.2,bold:true,align:'right'}); }}); } }
+          P.text(C[ci('Ποσ.')].right,y+6.7,'1',{size:9,align:'right'}); P.text(C[ci('Ημέρες')].right,y+6.7,b==='flat'?'—':(b==='hour'?qn+' ώρ.':String(qn)),{size:9,align:'right'}); P.text(C[ci('Τιμή μον.')].right,y+6.7,money(crewCharge(a)),{size:9,align:'right'}); P.text(C[ci('Αξία')].right,y+6.7,money(crewCharge(a)),{size:9.2,bold:true,align:'right'}); }}); }
+      if(grp) rows.push(sumRow('Σύνολο προσωπικού', tt.crewCharge)); }
     y=pdfTable(P, y, cols, rows, {zebra:true});
+    // σύνοψη ανά κατηγορία (αριστερά από τα σύνολα)
+    const recap=grp?groups.map(g=>[g.name,g.total]):[]; if(grp&&crewList.length) recap.push(['Τεχνικό προσωπικό',tt.crewCharge]);
     // σύνολα
     const tl=[['Υποσύνολο',money(tt.sub)]]; if(tt.disc) tl.push([`Έκπτωση ${num(o.discount)}%`,'−'+money(tt.disc)]); tl.push(['Καθαρή αξία',money(tt.net)],[`ΦΠΑ ${tt.vr}%`,money(tt.vat)]);
-    const th=tl.length*5.4+14+(tt.deposit?6:0); if(y+th+6>P.H-22){ P.addPage(); y=18; }
+    const showRecap=recap.length>1; const rh=showRecap?recap.length*5.4+9:0;
+    const th=Math.max(tl.length*5.4+14+(tt.deposit?6:0), rh); if(y+th+6>P.H-22){ P.addPage(); y=18; }
     y+=6; const tx=P.W-14-78, tw=78;
+    if(showRecap){ const rx=14, rw=88; let ry=y; P.text(rx,ry+3,'ΣΥΝΟΨΗ ΑΝΑ ΚΑΤΗΓΟΡΙΑ',{size:7,bold:true,color:PC.gold,spacing:1}); ry+=5;
+      for(const [k,v] of recap){ P.text(rx+1,ry+3.6,pdfSafe(k),{size:9,maxW:rw-30}); P.text(rx+rw-1,ry+3.6,money(v),{size:9,bold:true,align:'right'}); P.line(rx,ry+5.2,rx+rw,ry+5.2,{color:PC.line,lw:0.2}); ry+=5.4; } }
     for(const [k,v] of tl){ P.text(tx+3,y+3.6,k,{size:9,color:PC.mute}); P.text(tx+tw-3,y+3.6,v,{size:9,align:'right'}); y+=5.4; }
     y+=1.5; P.rect(tx,y,tw,11,{fill:PC.dark,r:2.5}); P.text(tx+4,y+7.2,'ΣΥΝΟΛΟ',{size:9.5,bold:true,color:'#ffffff',spacing:0.8}); P.text(tx+tw-4,y+7.6,money(tt.total),{size:13,bold:true,color:PC.brand,align:'right'}); y+=11;
     if(tt.deposit){ y+=5; P.text(tx+3,y,'Εγγύηση',{size:8.5,color:PC.mute}); P.text(tx+tw-3,y,money(tt.deposit),{size:8.5,align:'right'}); }
