@@ -651,3 +651,7 @@ tbody.ogrp tr.gsum td.num{color:var(--ink);font-size:14px}
 tbody.ogrp tr.gsum .gs{display:flex;justify-content:flex-end;align-items:baseline;gap:22px;padding-right:46px}
 tbody.ogrp tr.gsum .gs b{color:var(--ink);font-size:14.5px}
 @media (max-width:760px){ tbody.ogrp tr.gsum .gs,tbody.ogrp tr.ghead .gh{position:sticky;left:12px;width:max-content;justify-content:flex-start;padding-right:0} }
+
+.accbox{border:1px dashed var(--line);border-radius:10px;padding:10px 12px;background:#fcfcfa}
+.acc-row{grid-template-columns:1fr auto 80px auto !important;align-items:center}
+.acctag{color:#8a6a00;margin-top:2px}

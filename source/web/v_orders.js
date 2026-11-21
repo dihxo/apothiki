@@ -164,7 +164,7 @@ function getDraft(id){
   d.picked.units=d.picked.units||[]; d.picked.bulk=d.picked.bulk||{}; d.returned.units=d.returned.units||[]; d.returned.bulk=d.returned.bulk||{};
   return d;
 }
-function dirty(rerender=true){ if(!UI.draft) return; UI.draft._dirty=true; autosave(); if(rerender) render(); else { const s=$('#saveState'); if(s) s.innerHTML='<span class="faint">Αποθήκευση…</span>'; } }
+function dirty(rerender=true){ if(!UI.draft) return; syncAccessories(UI.draft); UI.draft._dirty=true; autosave(); if(rerender) render(); else { const s=$('#saveState'); if(s) s.innerHTML='<span class="faint">Αποθήκευση…</span>'; } }
 async function saveOrder(summary){
   const d=UI.draft; if(!d || !can('staff')) return;
   if(d.end && d.start && d.end<d.start) d.end=d.start;
@@ -203,7 +203,7 @@ VIEWS.order = id => {
     }
     const name = p ? `<div class="line-name pcell" style="gap:8px">${prodImg(p,34)}<span><a class="lk" href="#product-${p.id}">${esc(p.name)}</a> ${p.kind==='bundle'?'<span class="tag">Bundle</span>':''}${p.tracking==='serial'?'<span class="tag">S/N</span>':''}</span></div>${ro?(l.note?`<div class="xs muted">${esc(l.note)}</div>`:''):`<input type="text" value="${esc(l.note||'')}" data-ol="${i}" data-f="note" placeholder="Σημείωση γραμμής" class="xs" style="border:none;padding:2px 0;width:100%;background:transparent;color:var(--muted)">`}`
       : `<input type="text" value="${esc(l.name)}" data-ol="${i}" data-f="name" placeholder="Περιγραφή (π.χ. Μεταφορά, Τεχνικός)" ${ro?'disabled':''} style="width:100%">${useGroups(d)&&!ro?`<select data-ol="${i}" data-f="cat" class="xs" style="margin-top:4px;padding:2px 4px;font-size:11.5px;max-width:200px" title="Σε ποια κατηγορία της προσφοράς θα μπει"><option value="">Κατηγορία: Λοιπά</option>${sortBy(Object.values(D.categories).filter(c=>!c.parent||!D.categories[c.parent]),c=>c.name).map(c=>`<option value="${c.id}" ${l.cat===c.id?'selected':''}>Κατηγορία: ${esc(groupName(c.id))}</option>`).join('')}</select>`:''}`;
-    return `<tr data-li="${i}"><td><div class="lrow">${!ro&&d.lines.length>1?'<span class="drag" title="Σύρε για αλλαγή σειράς" aria-label="Μετακίνηση">⋮⋮</span>':''}<div class="grow" style="min-width:0">${name}${sub}${problem}</div></div></td>
+    return `<tr data-li="${i}"><td><div class="lrow">${!ro&&d.lines.length>1?'<span class="drag" title="Σύρε για αλλαγή σειράς" aria-label="Μετακίνηση">⋮⋮</span>':''}<div class="grow" style="min-width:0">${name}${l.accOf?`<div class="xs acctag">↳ συνοδευτικό${(()=>{ const pl=d.lines.find(x=>x.id===l.accOf); return pl&&D.products[pl.pid]?' του '+esc(D.products[pl.pid].name):''; })()}${l.accManual?' · χειροκίνητη ποσότητα':''}</div>`:''}${sub}${problem}</div></div></td>
       <td>${avail}</td>
       <td>${ro?`<b>${num(l.qty)}</b>`:`<span class="qbox"><button data-act="o-qty" data-i="${i}" data-d="-1">−</button><input type="number" min="0" step="1" value="${esc(l.qty)}" data-ol="${i}" data-f="qty"><button data-act="o-qty" data-i="${i}" data-d="1">+</button></span>`}</td>
       <td class="pr" style="white-space:nowrap"><select data-ol="${i}" data-f="priceType" ${ro?'disabled':''} style="padding:5px 4px;font-size:12px;max-width:96px"><option value="day" ${l.priceType!=='flat'?'selected':''}>/ημέρα ×${tt.days}</option><option value="flat" ${l.priceType==='flat'?'selected':''}>περιόδου</option></select> <input type="number" class="price" min="0" step="0.01" value="${esc(l.price)}" data-ol="${i}" data-f="price" ${ro?'disabled':''} title="${l.priceType==='flat'?'Τιμή για όλη την περίοδο':'Τιμή 1ης ημέρας'}">${l.priceType!=='flat'&&tt.days>1&&l.tiered?`<div class="xs muted" style="margin-top:3px;text-align:right" title="${TIER_TXT}">κλιμακωτά ${tt.days} ημ. = ${Math.round(tierFactor(tt.days)*100)}% ${ro?'':`<a href="#" data-act="o-line-untier" data-i="${i}" title="Αλλαγή σε σταθερή τιμή επόμενων ημερών">✎</a>`}</div>`:''}${l.priceType!=='flat'&&tt.days>1&&!l.tiered?`<div class="xs muted" style="margin-top:3px;text-align:right">επόμενες ${tt.days-1} ημ. × <input type="number" min="0" step="0.01" value="${esc(hasExtra(l)?l.extraPrice:'')}" placeholder="${esc(l.price)}" data-ol="${i}" data-f="extraPrice" ${ro?'disabled':''} style="width:70px;padding:2px 5px;font-size:12px;text-align:right" title="Τιμή για κάθε επόμενη ημέρα (κενό = ίδια με την 1η)"> €</div>`:''}</td>
@@ -287,7 +287,7 @@ VIEWS.order = id => {
     </div>
   </div>`;
 };
-ACT['o-qty']=el=>{ const l=UI.draft.lines[+el.dataset.i]; l.qty=Math.max(0,num(l.qty)+(+el.dataset.d)); dirty(); };
+ACT['o-qty']=el=>{ const l=UI.draft.lines[+el.dataset.i]; l.qty=Math.max(0,num(l.qty)+(+el.dataset.d)); if(l.accOf) l.accManual=true; dirty(); };
 ACT['o-pay-new']=()=>{ const d=UI.draft, tt=orderTotals(d); M={type:'pay'};
   openModal(`<div class="dlg-h"><h2>Νέα πληρωμή · ${esc(d.number)}</h2><button class="icon" data-act="modal-close">✕</button></div><div class="dlg-b">
   <div class="f2"><label class="f">Ποσό €<input type="number" id="payAmt" step="0.01" value="${Math.max(0,tt.due).toFixed(2)}" autofocus></label><label class="f">Ημερομηνία<input type="date" id="payDate" value="${today()}"></label></div>
@@ -351,7 +351,8 @@ ON_CHANGE.push((el)=>{
     dirty(); return true;
   }
   if(el.dataset.ol!==undefined){ const l=d.lines[+el.dataset.ol]; const f=el.dataset.f; if(f==='name'||f==='note') return true;
-    l[f] = f==='priceType' ? el.value : (f==='qty'?Math.max(0,Math.round(num(el.value))):(f==='extraPrice'&&el.value===''?'':num(el.value))); dirty(); return true; }
+    l[f] = (f==='priceType'||f==='cat') ? el.value : (f==='qty'?Math.max(0,Math.round(num(el.value))):(f==='extraPrice'&&el.value===''?'':num(el.value)));
+    if(f==='qty'&&l.accOf) l.accManual=true; dirty(); return true; }
   return false;
 });
 let ADD_LIST=[], ADD_SHOWN=0, ADD_NEED={};
@@ -371,10 +372,25 @@ function drawAddResults(q){
   box.style.display='block';
 }
 document.addEventListener('focusin', e=>{ if(e.target.id==='oAdd') drawAddResults(e.target.value); });
+function newLineFor(p, qty, extra){ return Object.assign({id:uid('ln'), pid:p.id, qty, price:productPrice(p), extraPrice:productExtra(p), priceType:p.priceType||'day', discount:0}, productTiered(p)?{tiered:true}:{}, extra||{}); }
+/* συνοδευτικά: όταν μπαίνει ένα προϊόν, μπαίνουν αυτόματα και τα συνοδευτικά του, με ποσότητα ανάλογη */
+function syncAccessories(d){ if(!d||!d.lines) return; const ids=new Set(d.lines.map(l=>l.id));
+  // συνοδευτικά που ο «γονιός» τους διαγράφηκε
+  d.lines=d.lines.filter(l=>!(l.accOf&&!ids.has(l.accOf)&&!l.accManual));
+  d.lines.forEach(l=>{ if(l.accOf&&!ids.has(l.accOf)){ delete l.accOf; delete l.accManual; } });
+  for(let i=0;i<d.lines.length;i++){ const par=d.lines[i]; if(!par.accSync||par.accOf) continue; const p=D.products[par.pid]; const accs=(p&&p.accessories)||[];
+    let at=i;
+    for(const a of accs){ const ap=D.products[a.pid]; if(!ap) continue; const target=Math.ceil(num(par.qty)*num(a.qty)-1e-9);
+      let ix=d.lines.findIndex(x=>x.accOf===par.id&&x.pid===a.pid);
+      if(ix<0){ if(target>0){ d.lines.splice(at+1,0,newLineFor(ap,target,{accOf:par.id})); at++; } continue; }
+      const al=d.lines[ix]; if(!al.accManual){ if(target>0) al.qty=target; else { d.lines.splice(ix,1); if(ix<=at) at--; continue; } } if(ix>at) at=ix; }
+    // συνοδευτικά που αφαιρέθηκαν από το προϊόν
+    d.lines=d.lines.filter(x=>!(x.accOf===par.id&&!x.accManual&&!accs.some(a=>a.pid===x.pid)));
+  } }
 function addProductLine(pid, qty=1){
   const d=UI.draft, p=D.products[pid]; if(!p) return;
-  const l=d.lines.find(x=>x.pid===pid);
-  if(l) l.qty=num(l.qty)+qty; else d.lines.push(Object.assign({id:uid('ln'), pid, qty, price:productPrice(p), extraPrice:productExtra(p), priceType:p.priceType||'day', discount:0}, productTiered(p)?{tiered:true}:{}));
+  const l=d.lines.find(x=>x.pid===pid&&!x.accOf);
+  if(l){ l.qty=num(l.qty)+qty; if(!l.accOf) l.accSync=true; } else d.lines.push(newLineFor(p, qty, {accSync:true}));
   dirty();
 }
 ACT['o-add']=el=>{ const pid=el.dataset.id, i0=$('#oAdd'), b0=$('#oAddRes'); const q=i0?i0.value:'', sc=b0?b0.scrollTop:0, shown=ADD_SHOWN;
@@ -736,7 +752,8 @@ ACT['cp-cat']=el=>{ const id=el.dataset.v; const has=Object.values(D.categories)
 ON_INPUT.push(el=>{ if(el.dataset.cpq&&M&&M.type==='catpick'){ cpSet(el.dataset.cpq, el.value); return true; } return false; });
 ACT['cp-apply']=()=>{ const d=UI.draft; if(!d) return closeModal(); const ch=cpChanges(); if(!ch.length) return closeModal();
   for(const {id,b} of ch){ const ls=d.lines.filter(l=>l.pid===id);
-    if(!ls.length){ if(b>0){ const p=D.products[id]; d.lines.push(Object.assign({id:uid('ln'), pid:id, qty:b, price:productPrice(p), extraPrice:productExtra(p), priceType:p.priceType||'day', discount:0}, productTiered(p)?{tiered:true}:{})); } continue; }
+    if(!ls.length){ if(b>0) d.lines.push(newLineFor(D.products[id], b, {accSync:true})); continue; }
+    ls.forEach(l=>{ if(!l.accOf) l.accSync=true; });
     if(b<=0){ d.lines=d.lines.filter(l=>l.pid!==id); continue; }
     const others=ls.slice(1).reduce((a,l)=>a+num(l.qty),0); if(b>others) ls[0].qty=b-others; else { ls[0].qty=b; d.lines=d.lines.filter(l=>l.pid!==id||l===ls[0]); } }
   closeModal(); dirty(); toast(`Ενημερώθηκε η παραγγελία (${ch.length} ${ch.length===1?'αλλαγή':'αλλαγές'})`); };

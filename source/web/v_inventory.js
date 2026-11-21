@@ -179,7 +179,7 @@ ACT['pm-sugg-pick']=async el=>{
 
 function productModal(id, kind){
   const p = id ? deepCopy(D.products[id]) : {id:null, kind:kind||'item', tracking:'bulk', name:'', sku:'', cat:(UI.prodCat&&D.categories[UI.prodCat])?UI.prodCat:'', qty:1, price:'', priceType:'day', extraMode:'tier', extraValue:'', replacement:'', location:'', supplier:'', notes:'', components:[], _units:1};
-  p.components=p.components||[];
+  p.components=p.components||[]; p.accessories=deepCopy(p.accessories||[]);
   M={type:'product', p, redraw:drawProductModal}; drawProductModal();
   if(SERVER&&!imgSrc(p)&&(p.name||'').trim().length>=3) findPhotos(false);
 }
@@ -214,6 +214,9 @@ function drawProductModal(){
       <div class="small muted" style="align-self:end;padding-bottom:6px">${extraPreview(p)}</div></div></div>`:''}
     <div class="f2"><label class="f">Θέση στην αποθήκη<input type="text" data-pm="location" value="${esc(p.location)}" placeholder="π.χ. Ράφι Β3"></label>${!isB?`<label class="f">Προμηθευτής<input type="text" data-pm="supplier" value="${esc(p.supplier)}"></label>`:''}</div>
     ${isB?`<div><div class="row between" style="margin-bottom:8px"><b>Περιεχόμενα</b><button class="btn sm" data-act="pm-comp-add">+ Προϊόν</button></div><div class="grid" style="gap:8px">${p.components.length?p.components.map((c,i)=>`<div class="comp-row"><select data-pmc="${i}" data-f="pid"><option value="">— Επίλεξε —</option>${opts(c.pid)}</select><input type="number" min="1" step="1" data-pmc="${i}" data-f="qty" value="${esc(c.qty)}"><button class="icon" data-act="pm-comp-del" data-i="${i}">✕</button></div>`).join(''):'<div class="small muted">Η διαθεσιμότητα του bundle υπολογίζεται αυτόματα από τα περιεχόμενά του.</div>'}</div></div>`:''}
+    <div class="accbox"><div class="row between" style="margin-bottom:6px"><div><b>Συνοδευτικά</b> <span class="xs muted">— μπαίνουν αυτόματα στην παραγγελία μαζί με αυτό το προϊόν</span></div><button class="btn sm" data-act="pm-acc-add">+ Συνοδευτικό</button></div>
+      ${p.accessories.length?`<div class="grid" style="gap:8px">${p.accessories.map((a,i)=>`<div class="comp-row acc-row"><select data-pma="${i}" data-f="pid"><option value="">— Επίλεξε προϊόν (π.χ. καλώδιο) —</option>${opts(a.pid)}</select><label class="xs muted" style="white-space:nowrap">ανά 1 τεμ.</label><input type="number" min="0" step="0.01" data-pma="${i}" data-f="qty" value="${esc(a.qty)}" title="Πόσα μπαίνουν για κάθε 1 τεμάχιο αυτού του προϊόντος"><button class="icon" data-act="pm-acc-del" data-i="${i}">✕</button></div>`).join('')}</div>
+      <div class="xs muted" style="margin-top:6px">Π.χ. <b>2</b> = 2 τεμάχια για κάθε 1 · <b>0,25</b> = 1 τεμάχιο ανά 4 (στρογγυλεύεται προς τα πάνω).</div>`:`<div class="xs muted">Π.χ. για 1 τμ LED wall: καλώδια ρεύματος, καλώδια σήματος, βάσεις.</div>`}</div>
     <label class="f">Σημειώσεις<textarea data-pm="notes">${esc(p.notes)}</textarea></label>
   </div>
   <div class="dlg-f">${p.id?`<button class="btn dangerous" data-act="pm-del" style="margin-right:auto">Διαγραφή</button><button class="btn" data-act="pm-archive">${p.archived?'Επαναφορά':'Αρχειοθέτηση'}</button>`:''}<button class="btn" data-act="modal-close">Άκυρο</button><button class="btn pri" data-act="pm-save" data-primary>Αποθήκευση</button></div>`);
@@ -224,11 +227,15 @@ ON_INPUT.push(el=>{ if(!M) return false;
     if(el.dataset.pm==='name' && !p.id && !p._skuManual){ p.sku=skuFromName(el.value); const si=$('input[data-pm=sku]'); if(si) si.value=p.sku; }
     return true; }
   if(el.dataset.pmc!==undefined){ M.p.components[+el.dataset.pmc][el.dataset.f]=el.value; return true; }
+  if(el.dataset.pma!==undefined&&M.type==='product'){ M.p.accessories[+el.dataset.pma][el.dataset.f]=el.value; return true; }
   return false; });
 ON_CHANGE.push(el=>{ if(!M) return false;
   if(el.dataset.pm!==undefined && M.type==='product'){ M.p[el.dataset.pm]=el.value; if(el.dataset.redraw||el.dataset.redrawChange) drawProductModal(); return true; }
   if(el.dataset.pmc!==undefined){ M.p.components[+el.dataset.pmc][el.dataset.f]=el.value; return true; }
+  if(el.dataset.pma!==undefined&&M.type==='product'){ M.p.accessories[+el.dataset.pma][el.dataset.f]=el.value; return true; }
   return false; });
+ACT['pm-acc-add']=()=>{ M.p.accessories.push({pid:'',qty:1}); drawProductModal(); };
+ACT['pm-acc-del']=el=>{ M.p.accessories.splice(+el.dataset.i,1); drawProductModal(); };
 ACT['new-product']=()=>productModal(null,'item');
 ACT['new-bundle']=()=>productModal(null,'bundle');
 ACT['edit-product']=el=>productModal(el.dataset.id);
@@ -242,6 +249,7 @@ ACT['pm-save']=async()=>{
   const dupU=Object.values(D.units).find(u=>(u.code||'').toLowerCase()===p.sku.toLowerCase());
   if(dupP||dupU) return toast(`Ο κωδικός ${p.sku} χρησιμοποιείται ήδη.`, true);
   const doc={kind:p.kind, name:p.name, sku:p.sku, image:p.image||'', imageUrl:p.imageUrl||'', cat:p.cat||'', price:p.price===''||p.price==null?(p.kind==='bundle'?'':0):num(p.price), priceType:p.priceType||'day', extraMode:p.priceType==='flat'?'same':(p.extraMode||'same'), extraValue:(p.extraMode==='amount'||p.extraMode==='pct')&&p.extraValue!==''&&p.extraValue!=null?num(p.extraValue):'', location:p.location||'', notes:p.notes||'', archived:!!p.archived};
+  doc.accessories=(p.accessories||[]).filter(a=>a.pid&&a.pid!==p.id&&num(a.qty)>0).map(a=>({pid:a.pid, qty:Math.round(num(a.qty)*100)/100}));
   if(p.kind==='bundle'){ doc.components=p.components.filter(c=>c.pid&&num(c.qty)>0).map(c=>({pid:c.pid,qty:Math.round(num(c.qty))})); if(!doc.components.length) return toast('Το bundle χρειάζεται τουλάχιστον ένα προϊόν.', true); }
   else { doc.tracking=p.tracking||'bulk'; doc.qty=Math.max(0,Math.round(num(p.qty))); doc.replacement=num(p.replacement)||''; doc.supplier=p.supplier||''; }
   const id=p.id||uid('pr'); const ops=[{op:'put',coll:'products',id,doc}];

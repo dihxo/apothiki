@@ -414,12 +414,10 @@ func searchYandex(ctx context.Context, q string) ([]imgHit, error) {
 		}
 	}
 	var out []imgHit
-	for i, t := range thumbs {
-		img := t
-		if i < len(origs) && len(origs) >= len(thumbs)/2 {
-			img = origs[i]
-		}
-		out = append(out, imgHit{Image: img, Thumb: t})
+	// Οι μικρογραφίες και οι αρχικές διευθύνσεις της σελίδας δεν έχουν ίδια σειρά,
+	// οπότε κατεβάζουμε την ίδια εικόνα που βλέπει ο χρήστης (τη μικρογραφία).
+	for _, t := range thumbs {
+		out = append(out, imgHit{Image: t, Thumb: t})
 		if len(out) >= 12 {
 			break
 		}
