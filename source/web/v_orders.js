@@ -212,7 +212,7 @@ VIEWS.order = id => {
       <td class="num">${ro?'':`<button class="icon" data-act="o-line-del" data-i="${i}" title="Αφαίρεση">✕</button>`}</td></tr>`;
   });
   const grp=useGroups(d), groups=grp?orderGroups(d):[];
-  const lineBody=grp&&groups.length?groups.map(g=>`<tbody class="ogrp"><tr class="ghead"><td colspan="7"><div class="gh"><span>${esc(g.name)}</span> <span class="xs muted">${g.idx.length} ${g.idx.length===1?'γραμμή':'γραμμές'}</span></div></td></tr>${g.idx.map(i=>rowsArr[i]).join('')}<tr class="gsum pr"><td colspan="7"><div class="gs"><span>Σύνολο ${esc(g.name)}</span><b>${money(g.total)}</b></div></td></tr></tbody>`).join('')
+  const lineBody=grp&&groups.length?groups.map(g=>`<tbody class="ogrp"><tr class="ghead"><td colspan="7"><div class="gh"><span>${esc(g.name)}</span></div></td></tr>${g.idx.map(i=>rowsArr[i]).join('')}<tr class="gsum pr"><td colspan="7"><div class="gs"><span>Σύνολο ${esc(g.name)}</span><b>${money(g.total)}</b></div></td></tr></tbody>`).join('')
     : `<tbody>${rowsArr.join('')}</tbody>`;
   const catOpts=sortBy(Object.values(D.categories).filter(c=>!c.parent||!D.categories[c.parent]),c=>c.name);
   const custOpts=sortBy(Object.values(D.customers),c=>c.company||c.name||'').map(c=>`<option value="${c.id}" ${c.id===d.customerId?'selected':''}>${esc(c.company||c.name)}${c.company&&c.name?' — '+esc(c.name):''}</option>`).join('');
