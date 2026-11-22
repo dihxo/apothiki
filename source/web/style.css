@@ -254,12 +254,12 @@ tfoot td{font-weight:600;background:#fbfcfd}
 .fpanel label.f{display:flex;flex-direction:column;align-items:stretch;padding:0;gap:4px}
 .ocol-name{min-width:210px}
 
-.pimg{border-radius:8px;object-fit:cover;flex:none;background:#fff;border:1px solid var(--line);display:inline-grid;place-items:center;vertical-align:middle}
+.pimg{border-radius:8px;object-fit:contain;padding:1px;box-sizing:border-box;flex:none;background:#fff;border:1px solid var(--line);display:inline-grid;place-items:center;vertical-align:middle}
 .pimg.ph{background:var(--soft);color:var(--faint);font-weight:700}
 .pcell{display:flex;align-items:center;gap:10px}
 .imgdrop{width:132px;height:132px;border:2px dashed var(--line);border-radius:12px;display:grid;place-items:center;overflow:hidden;background:#fafbfc;cursor:pointer;flex:none;text-align:center;font-size:12px;color:var(--muted)}
 .imgdrop.over{border-color:var(--pri);background:var(--pri-soft)}
-.imgdrop img{width:100%;height:100%;object-fit:cover}
+.imgdrop img{width:100%;height:100%;object-fit:contain;background:#fff}
 
 /* ===================== ΔΙΗΧΟ brand ===================== */
 a{color:var(--brand-ink)}

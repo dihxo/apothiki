@@ -117,7 +117,7 @@ VIEWS.product = id => {
       ${p.kind!=='bundle'?`<div class="card p0"><div class="card-h"><h2>Ιστορικό συντήρησης</h2></div>${mnts.length?`<table><tbody>${mnts.map(m=>`<tr class="click" data-act="edit-mnt" data-id="${m.id}"><td><b>${esc(m.title||'Βλάβη')}</b><div class="xs muted">${m.unitId?esc(D.units[m.unitId]?.code||''):(num(m.qty)||1)+' τεμ.'} · ${fmtD(m.start)}${m.end?' → '+fmtD(m.end):''}</div></td><td class="num">${m.cost?money(m.cost):''}</td><td>${pill(m.status,MSTATUS)}</td></tr>`).join('')}</tbody></table>`:'<div class="empty" style="padding:24px">Καμία εγγραφή.</div>'}</div>`:''}
     </div>
     <div class="grid" style="align-content:start">
-      ${imgSrc(p)?`<div class="card" style="padding:10px"><img src="${esc(imgSrc(p))}" style="width:100%;aspect-ratio:1;object-fit:cover;border-radius:8px;display:block" alt=""></div>`:(can('staff')?`<div class="card" style="text-align:center"><div class="muted small" style="margin-bottom:8px">Δεν υπάρχει εικόνα</div><button class="btn sm" data-act="edit-product" data-id="${id}">📷 Προσθήκη εικόνας</button></div>`:'')}
+      ${imgSrc(p)?`<div class="card" style="padding:10px"><img src="${esc(imgSrc(p))}" style="width:100%;aspect-ratio:1;object-fit:contain;background:#fff;border-radius:8px;display:block" alt=""></div>`:(can('staff')?`<div class="card" style="text-align:center"><div class="muted small" style="margin-bottom:8px">Δεν υπάρχει εικόνα</div><button class="btn sm" data-act="edit-product" data-id="${id}">📷 Προσθήκη εικόνας</button></div>`:'')}
       <div class="card qrbox">${qrSVG(p.sku,180)}<div class="mono">${esc(p.sku)}</div></div>
       <div class="card"><h2>Στοιχεία</h2><dl class="kv">
         <dt>Τύπος</dt><dd>${p.kind==='bundle'?'Bundle':(p.tracking==='serial'?'Σειριακοί αριθμοί':'Ποσότητα')}</dd>
@@ -331,7 +331,7 @@ async function setProductImage(blob, fit){
   if(!M||M.type!=='product') return;
   if(!blob||!/^image\//.test(blob.type)) return toast('Δεν βρέθηκε εικόνα.', true);
   M.p._imgBusy=true; drawProductModal();
-  try{ const sq=await squareImage(blob, 600, fit||'cover'); const url=await storeImage(sq); if(M&&M.type==='product'){ M.p.image=url; } toast('Η εικόνα προστέθηκε'); }
+  try{ const sq=await squareImage(blob, 600, fit||'contain'); const url=await storeImage(sq); if(M&&M.type==='product'){ M.p.image=url; } toast('Η εικόνα προστέθηκε'); }
   catch(e){ toast(e.error||e.message||'Η εικόνα δεν αποθηκεύτηκε', true); }
   if(M&&M.type==='product'){ M.p._imgBusy=false; drawProductModal(); }
 }
