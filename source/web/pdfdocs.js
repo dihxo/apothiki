@@ -236,15 +236,15 @@ async function pdfCatalog(list, subtitle){
     const logo=await pdfLogo(); P.addPage(210,297);
     const meta=[['Ημερομηνία',fmtD(today())],['Προϊόντα',String(list.length)]]; if(subtitle) meta.push(['Φίλτρο',subtitle]);
     let y=pdfDocHead(P, logo, 'ΚΑΤΑΛΟΓΟΣ ΕΞΟΠΛΙΣΜΟΥ', meta)+2;
-    const cols=[{t:'',w:20},{t:'Προϊόν',w:0}]; if(!np) cols.push({t:'Τιμή ενοικίασης',w:38,align:'right'}); cols.push({t:'Απόθεμα',w:22,align:'right'});
+    const cols=[{t:'',w:17},{t:'Προϊόν',w:0}]; if(!np) cols.push({t:'Τιμή ενοικίασης',w:38,align:'right'}); cols.push({t:'Απόθεμα',w:22,align:'right'});
     const ci=t=>cols.findIndex(c=>c.t===t); const rows=[]; let last=null;
-    for(const p of list){ const cp=catPath(p.cat)||'Χωρίς κατηγορία'; if(cp!==last){ rows.push({sec:cp, h:6}); last=cp; }
+    for(const p of list){ const cp=catPath(p.cat)||'Χωρίς κατηγορία'; if(cp!==last){ rows.push({sec:cp, h:5.6}); last=cp; }
       const im=imgs[p.id]; const pr=productPrice(p);
-      rows.push({h:17, draw:(C,y)=>{ if(im) P.imageFit(im, C[0].x+2, y+1.5, 16, 14); else { P.rect(C[0].x+2,y+1.5,16,14,{fill:'#f3f4f6',r:1.5}); P.text(C[0].x+10,y+9.8,pdfSafe(initials(p.name)),{size:8,color:'#9aa0a6',align:'center'}); }
-        const nl=P.wrap(pdfSafe(p.name), C[1].w-4, 10, true).slice(0,2); let ty=y+(nl.length>1?6.4:8); nl.forEach(t=>{ P.text(C[1].left,ty,t,{size:10,bold:true}); ty+=4.4; });
-        P.text(C[1].left,ty+0.2,pdfSafe([p.sku, p.kind==='bundle'?'Bundle':''].filter(Boolean).join(' · ')),{size:7.6,color:'#8a8a8e'});
-        if(!np){ P.text(C[ci('Τιμή ενοικίασης')].right,y+8,money(pr),{size:10,bold:true,align:'right'}); P.text(C[ci('Τιμή ενοικίασης')].right,y+12,p.priceType==='flat'?'σταθερή':'ανά ημέρα',{size:7.4,color:'#8a8a8e',align:'right'}); }
-        P.text(C[ci('Απόθεμα')].right,y+9.8,String(stockOf(p.id)),{size:11,bold:true,align:'right'}); }});
+      rows.push({h:13.2, draw:(C,y)=>{ if(im) P.imageFit(im, C[0].x+2, y+1.1, 13, 11); else { P.rect(C[0].x+2,y+1.1,13,11,{fill:'#f3f4f6',r:1.2}); P.text(C[0].x+8.5,y+7.9,pdfSafe(initials(p.name)),{size:7,color:'#9aa0a6',align:'center'}); }
+        const nl=P.wrap(pdfSafe(p.name), C[1].w-4, 9.4, true).slice(0,2); let ty=y+(nl.length>1?4.9:6.1); nl.forEach(t=>{ P.text(C[1].left,ty,t,{size:9.4,bold:true}); ty+=3.9; });
+        P.text(C[1].left,ty+0.1,pdfSafe([p.sku, p.kind==='bundle'?'Bundle':''].filter(Boolean).join(' · ')),{size:7,color:'#8a8a8e'});
+        if(!np){ P.text(C[ci('Τιμή ενοικίασης')].right,y+6.3,money(pr),{size:9.6,bold:true,align:'right'}); P.text(C[ci('Τιμή ενοικίασης')].right,y+9.9,p.priceType==='flat'?'σταθερή':'ανά ημέρα',{size:6.8,color:'#8a8a8e',align:'right'}); }
+        P.text(C[ci('Απόθεμα')].right,y+8,String(stockOf(p.id)),{size:10.4,bold:true,align:'right'}); }});
     }
     y=pdfTable(P, y, cols, rows, {zebra:true});
     pdfFooters(P);
