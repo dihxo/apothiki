@@ -9,6 +9,7 @@ const VIEWS = {};    // route prefix -> fn(arg) => html
 const IC = {
   home:'<path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/>',
   orders:'<path d="M6 3h9l4 4v14H6z"/><path d="M14 3v5h5M9 13h7M9 17h7"/>',
+  spark:'<path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z"/><path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z"/>',
   cal:'<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>',
   box:'<path d="M3 7l9-4 9 4v10l-9 4-9-4z"/><path d="M3 7l9 4 9-4M12 11v10"/>',
   tag:'<path d="M3 12V4h8l10 10-8 8z"/><circle cx="7.5" cy="8.5" r="1.5"/>',
@@ -73,6 +74,7 @@ function navHTML(){
   return (can('staff')?`<a class="side-new" data-act="new-order"><i>+</i>Νέα παραγγελία</a>`:'')+
     a('dashboard','home','Αρχική')+
     a('calendar','cal','Ημερολόγιο')+
+    (can('staff')||NOPRICE()?a('ai','spark','Βοηθός'):'')+
     a('wh','truck','Λειτουργία αποθήκης','',['wh-'])+'<hr>'+
     a('orders','orders','Παραγγελίες', (pick+late)?`<span class="cnt">${pick+late}</span>`:'', ['order-'])+
     a('customers','users','Πελάτες','',['customer-'])+

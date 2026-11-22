@@ -655,3 +655,22 @@ tbody.ogrp tr.gsum .gs b{color:var(--ink);font-size:14.5px}
 .accbox{border:1px dashed var(--line);border-radius:10px;padding:10px 12px;background:#fcfcfa}
 .acc-row{grid-template-columns:1fr auto 80px auto !important;align-items:center}
 .acctag{color:#8a6a00;margin-top:2px}
+
+/* βοηθός AI */
+.spin{display:inline-block;width:18px;height:18px;border:2.5px solid #e8d48a;border-top-color:var(--brand,#f2c230);border-radius:50%;animation:spin .8s linear infinite;vertical-align:middle;flex:none}
+@keyframes spin{to{transform:rotate(360deg)}}
+.aiwait{display:flex;gap:12px;align-items:center;padding:16px;background:#fffbea;border-radius:10px}
+.aisum{background:#f7f8fa;border-radius:10px;padding:10px 12px;font-size:13.5px;line-height:1.5}
+.aiwarn{background:#fff6e6;border:1px solid #f3d9a6;border-radius:10px;padding:8px 12px;font-size:13px;color:#8a4b00;display:grid;gap:3px}
+.aiapply{display:flex;flex-wrap:wrap;gap:8px 18px;font-size:13px}.aiapply label{display:flex;gap:6px;align-items:center}
+.aitab td{vertical-align:middle}.aitab tr.off{opacity:.45}.aitab .aiq{width:64px;text-align:center;font-weight:700}
+.aichat{min-height:280px;max-height:calc(100vh - 330px);overflow:auto;display:flex;flex-direction:column;gap:10px;padding:16px}
+.aimsg{max-width:82%;padding:10px 13px;border-radius:14px;font-size:14px;line-height:1.5;white-space:normal}
+.aimsg.user{align-self:flex-end;background:#fff3c4;border-bottom-right-radius:4px}
+.aimsg.assistant{align-self:flex-start;background:#f3f4f6;border-bottom-left-radius:4px}
+.aiex .chip{border:1px solid var(--line);background:#fff;border-radius:20px;padding:7px 12px;font-size:13px;margin:0 6px 6px 0;cursor:pointer}
+.aiinput{display:flex;gap:8px;margin-top:10px;align-items:flex-end}.aiinput textarea{flex:1;resize:vertical;min-height:46px}
+.aistat{display:grid;grid-template-columns:1fr 2fr;gap:16px;background:#fafbfc;border:1px solid var(--line);border-radius:10px;padding:12px 14px}
+.aibar{height:6px;background:#eceef1;border-radius:4px;margin-top:6px;overflow:hidden}.aibar i{display:block;height:100%;background:var(--brand,#f2c230)}
+@media (max-width:760px){ .aimsg{max-width:94%} .aichat{max-height:calc(100vh - 300px)} .aistat{grid-template-columns:1fr} }
+.aimsg{overflow-wrap:anywhere}
