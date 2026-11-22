@@ -27,7 +27,7 @@ VIEWS.products = () => {
     <td class="small c-loc">${esc(p.location||'')}</td>
     <td class="num" style="white-space:nowrap"><button class="icon" data-act="qr" data-code="${esc(p.sku)}" data-name="${esc(p.name)}" title="QR">▣</button>${can('staff')?`<button class="icon" data-act="edit-product" data-id="${p.id}" title="Επεξεργασία">✎</button>`:''}</td></tr>`; }).join('');
   return `<div class="ph"><div><h1>Προϊόντα</h1><p class="sub">Εξοπλισμός, bundles και απόθεμα</p></div>
-    <div class="row"><button class="btn" data-act="p-labels" ${UI.prodSel.size?'':'disabled'}>Ετικέτες QR${UI.prodSel.size?` (${UI.prodSel.size})`:''}</button><button class="btn" data-act="p-csv">Εξαγωγή CSV</button>${can('staff')?`<button class="btn" data-act="p-import">Εισαγωγή CSV</button><button class="btn" data-act="new-bundle">+ Bundle</button><button class="btn pri" data-act="new-product">+ Νέο προϊόν</button>`:''}</div></div>
+    <div class="row"><button class="btn" data-act="p-labels" ${UI.prodSel.size?'':'disabled'}>Ετικέτες QR${UI.prodSel.size?` (${UI.prodSel.size})`:''}</button><button class="btn" data-act="p-pdf">Εξαγωγή PDF</button><button class="btn" data-act="p-csv">Εξαγωγή CSV</button>${can('staff')?`<button class="btn" data-act="p-import">Εισαγωγή CSV</button><button class="btn" data-act="new-bundle">+ Bundle</button><button class="btn pri" data-act="new-product">+ Νέο προϊόν</button>`:''}</div></div>
   <div class="tabs">${[['all','Όλα'],['item','Προϊόντα'],['bundle','Bundles'],['archived','Αρχειοθετημένα']].map(([k,l])=>`<button class="${tab===k?'on':''}" data-act="tab" data-k="prodTab" data-v="${k}">${l}<span class="c">${cnt[k]}</span></button>`).join('')}</div>
   <div class="split-l">
     <div class="card tree" style="padding:10px"><a class="${UI.prodCat==='all'?'on':''}" data-act="tab" data-k="prodCat" data-v="all">Όλες οι κατηγορίες<span>${cnt.all}</span></a>${tree('',0)}${noCat?`<a class="${UI.prodCat==='none'?'on':''}" data-act="tab" data-k="prodCat" data-v="none">Χωρίς κατηγορία<span>${noCat}</span></a>`:''}<div style="padding:8px 9px 2px"><a href="#categories" class="small" style="padding:0;color:var(--pri)">Διαχείριση κατηγοριών →</a></div></div>
@@ -41,6 +41,17 @@ ACT['mprod-more']=()=>{ UI.mProdN=(UI.mProdN||60)+60; render(); };
 ACT['p-sel']=el=>{ el.checked?UI.prodSel.add(el.dataset.id):UI.prodSel.delete(el.dataset.id); render(); };
 ACT['p-sel-all']=el=>{ $$('[data-act=p-sel]').forEach(b=>el.checked?UI.prodSel.add(b.dataset.id):UI.prodSel.delete(b.dataset.id)); render(); };
 ACT['p-labels']=()=>{ const items=[]; for(const id of UI.prodSel){ const p=D.products[id]; if(!p) continue; if(p.tracking==='serial'){ const us=unitsOf(id); if(us.length){ us.forEach(u=>items.push({code:u.code,name:p.name,sub:u.serial?'S/N '+u.serial:catPath(p.cat)})); continue; } } items.push({code:p.sku,name:p.name,sub:catPath(p.cat)}); } printLabels(items); };
+function prodFilteredList(){ const tab=UI.prodTab; let list=Object.values(D.products);
+  list = tab==='archived' ? list.filter(p=>p.archived) : list.filter(p=>!p.archived);
+  if(tab==='item') list=list.filter(p=>p.kind!=='bundle'); if(tab==='bundle') list=list.filter(p=>p.kind==='bundle');
+  if(UI.prodCat==='none') list=list.filter(p=>!p.cat||!D.categories[p.cat]);
+  else if(UI.prodCat&&UI.prodCat!=='all'){ const set=catDesc(UI.prodCat); list=list.filter(p=>set.has(p.cat)); }
+  const q=(UI.prodQ||'').trim().toLowerCase();
+  if(q) list=list.filter(p=>[p.name,p.sku,p.location,p.supplier,p.notes,catPath(p.cat)].some(v=>(v||'').toLowerCase().includes(q)));
+  return prodsSorted(list); }
+ACT['p-pdf']=async()=>{ const list=prodFilteredList(); if(!list.length) return toast('Δεν υπάρχουν προϊόντα για εξαγωγή.', true);
+  const sub=[UI.prodCat==='none'?'Χωρίς κατηγορία':(UI.prodCat&&UI.prodCat!=='all'?catPath(UI.prodCat):''), (UI.prodQ||'').trim()?'αναζήτηση «'+UI.prodQ.trim()+'»':''].filter(Boolean).join(' · ');
+  await pdfCatalog(list, sub); };
 ACT['p-csv']=()=>{ const t=today(); downloadCSV(`proionta-${t}.csv`, ['Κωδικός','Όνομα','Τύπος','Παρακολούθηση','Κατηγορία','Απόθεμα','Διαθέσιμα σήμερα','Τιμή','Τύπος τιμής','Αξία αντικατάστασης','Θέση','Προμηθευτής','Περιεχόμενα','Σημειώσεις'],
   prodsSorted().map(p=>[p.sku,p.name,p.kind==='bundle'?'Bundle':'Προϊόν',p.tracking==='serial'?'Σειριακοί':'Ποσότητα',catPath(p.cat),stockOf(p.id),freeUnits(p.id,t,t).free,productPrice(p),p.priceType==='flat'?'σταθερή':'ημέρα',p.replacement||'',p.location||'',p.supplier||'',(p.components||[]).map(c=>(D.products[c.pid]?.sku||'?')+' x'+c.qty).join('; '),p.notes||''])); };
 
