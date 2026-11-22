@@ -674,3 +674,13 @@ tbody.ogrp tr.gsum .gs b{color:var(--ink);font-size:14.5px}
 .aibar{height:6px;background:#eceef1;border-radius:4px;margin-top:6px;overflow:hidden}.aibar i{display:block;height:100%;background:var(--brand,#f2c230)}
 @media (max-width:760px){ .aimsg{max-width:94%} .aichat{max-height:calc(100vh - 300px)} .aistat{grid-template-columns:1fr} }
 .aimsg{overflow-wrap:anywhere}
+
+.aiinput{flex-direction:column;align-items:stretch;background:#fff;border:1px solid var(--line);border-radius:14px;padding:10px;gap:8px}
+.aiinput textarea{min-height:110px;max-height:45vh;border:0;box-shadow:none;resize:none;font-size:14.5px;padding:4px 6px;outline:none}
+.aiinput textarea:focus{box-shadow:none}
+.aichips{display:flex;flex-wrap:wrap;gap:6px}
+.aichip{display:inline-flex;align-items:center;gap:6px;background:#f3f4f6;border:1px solid var(--line);border-radius:20px;padding:4px 10px;font-size:12.5px;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.aichip a{color:var(--muted);text-decoration:none}
+.aimsg .aichips{margin-bottom:6px}
+.aichat{max-height:calc(100vh - 420px)}
+.aimsg.user{white-space:pre-wrap}.aimsg.user .aichips{white-space:normal}

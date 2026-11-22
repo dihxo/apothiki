@@ -102,9 +102,35 @@ function aiMd(s){ let h=esc(s||'');
   return h.replace(/\n/g,'<br>'); }
 function aiNotReady(st){ return st&&st.enabled?'':`<div class="card" style="padding:14px;background:#fffaf0;border-color:#f0dca8"><b>Ο βοηθός δεν έχει ρυθμιστεί ακόμα.</b><div class="small muted" style="margin-top:4px">${can('admin')?'Βάλε το κλειδί της Anthropic στις <a class="lk" href="#setup-ai">Ρυθμίσεις → Βοηθός AI</a>.':'Ζήτα από τον διαχειριστή να βάλει το κλειδί της Anthropic στις Ρυθμίσεις.'}</div></div>`; }
 
+/* ---------- συνημμένα (φωτογραφίες, PDF, κείμενο) ---------- */
+const AI_MAX_FILE=10*1024*1024;
+function aiB64(buf){ let s=''; const b=new Uint8Array(buf); for(let i=0;i<b.length;i+=0x8000) s+=String.fromCharCode.apply(null,b.subarray(i,i+0x8000)); return btoa(s); }
+async function aiImageB64(file){ // μικραίνει μεγάλες φωτογραφίες (λιγότερο κόστος, ίδια ανάγνωση)
+  try{ const bmp=await createImageBitmap(file); const k=Math.min(1,1600/Math.max(bmp.width,bmp.height)); if(k>=1&&file.size<3e6&&/jpe?g|png|webp|gif/.test(file.type)) return {media:file.type, data:aiB64(await file.arrayBuffer())};
+    const c=document.createElement('canvas'); c.width=Math.round(bmp.width*k); c.height=Math.round(bmp.height*k); const x=c.getContext('2d'); x.fillStyle='#fff'; x.fillRect(0,0,c.width,c.height); x.drawImage(bmp,0,0,c.width,c.height);
+    const blob=await new Promise(r=>c.toBlob(r,'image/jpeg',0.85)); return {media:'image/jpeg', data:aiB64(await blob.arrayBuffer())}; }
+  catch(e){ return {media:file.type, data:aiB64(await file.arrayBuffer())}; } }
+async function aiReadFiles(files, list){
+  for(const f of files){ const name=f.name||'αρχείο', t=(f.type||'').toLowerCase(), ext=(name.split('.').pop()||'').toLowerCase();
+    if(f.size>AI_MAX_FILE){ toast(`«${name}»: πολύ μεγάλο (μέχρι 10 MB).`, true); continue; }
+    try{
+      if(/^image\//.test(t)){ const im=await aiImageB64(f); list.push({name, kind:'image', media:im.media, data:im.data, size:f.size}); }
+      else if(t==='application/pdf'||ext==='pdf') list.push({name, kind:'pdf', data:aiB64(await f.arrayBuffer()), size:f.size});
+      else if(/^text\//.test(t)||['txt','csv','md','eml','json','tsv','html','htm','xml'].includes(ext)) list.push({name, kind:'text', text:(await f.text()).slice(0,200000), size:f.size});
+      else toast(`«${name}»: αυτός ο τύπος δεν διαβάζεται — στείλε PDF, φωτογραφία ή κείμενο (για Word/Excel: «Αποθήκευση ως PDF»).`, true);
+    }catch(e){ toast(`«${name}»: δεν διαβάστηκε.`, true); } }
+  return list; }
+function aiFileBlocks(list){ return (list||[]).map(f=> f.kind==='image'?{type:'image', source:{type:'base64', media_type:f.media, data:f.data}}
+  : f.kind==='pdf'?{type:'document', source:{type:'base64', media_type:'application/pdf', data:f.data}, title:f.name}
+  : {type:'text', text:`Συνημμένο αρχείο «${f.name}»:\n${f.text}`}); }
+function aiUserContent(text, files){ return files&&files.length?[...aiFileBlocks(files), {type:'text', text:text||'Δες το συνημμένο.'}]:text; }
+function aiChips(list, act){ return (list||[]).length?`<div class="aichips">${list.map((f,i)=>`<span class="aichip">${f.kind==='image'?'🖼':f.kind==='pdf'?'📄':'📝'} ${esc(f.name)}${act?` <a href="#" data-act="${act}" data-i="${i}" title="Αφαίρεση">✕</a>`:''}</span>`).join('')}</div>`:''; }
+function aiPickFiles(cb){ const inp=document.createElement('input'); inp.type='file'; inp.multiple=true; inp.accept='image/*,application/pdf,.pdf,.txt,.csv,.md,.eml,text/*'; inp.onchange=()=>cb([...inp.files]); inp.click(); }
+function aiGrow(el){ el.style.height='auto'; el.style.height=Math.min(el.scrollHeight+2, Math.round(innerHeight*0.45))+'px'; }
+
 /* ---------- βοηθός μέσα στην παραγγελία ---------- */
 ACT['ai-order']=async()=>{ const d=UI.draft; if(!d) return; await aiLoadStatus();
-  M={type:'aiorder', q:UI.aiLastQ||'', busy:false, step:'', res:null, err:'', pick:{}, apply:{title:!d.name, venue:!d.venue, dates:false}, redraw:drawAIOrder}; drawAIOrder(); };
+  M={type:'aiorder', q:UI.aiLastQ||'', files:[], busy:false, step:'', res:null, err:'', pick:{}, apply:{title:!d.name, venue:!d.venue, dates:false}, redraw:drawAIOrder}; drawAIOrder(); };
 function aiOrderCtx(d){ const lines=d.lines.filter(l=>l.pid).map(l=>`${prodName(l.pid)} ×${num(l.qty)}`).join(', ');
   return [d.name?'Τίτλος: '+d.name:'', d.venue?'Χώρος: '+d.venue:'', d.start?`Ημερομηνίες: ${d.start} έως ${d.end||d.start}`:'Ημερομηνίες: δεν έχουν οριστεί', lines?'Ήδη στην παραγγελία: '+lines:'Η παραγγελία είναι άδεια.'].filter(Boolean).join('\n'); }
 function drawAIOrder(){ const st=AI.status, d=UI.draft, m=M; const r=m.res; const p=r&&r.proposal;
@@ -124,8 +150,9 @@ function drawAIOrder(){ const st=AI.status, d=UI.draft, m=M; const r=m.res; cons
   else if(!m.busy&&r&&!p) body+=`<div class="aisum">${aiMd(r.text||'Ο βοηθός δεν έδωσε λίστα. Δοκίμασε να περιγράψεις πιο συγκεκριμένα.')}</div>`;
   openModal(`<div class="dlg-h"><h2>✨ Βοηθός παραγγελίας</h2><button class="icon" data-act="modal-close">✕</button></div>
   <div class="dlg-b">${aiNotReady(st)}
-    <label class="f">Περίγραψε την εκδήλωση<textarea data-aiq-text rows="3" placeholder="π.χ. Συναυλία Σάββατο στο Δημοτικό Θέατρο Πάτρας, 400 άτομα, live μπάντα 5 ατόμων, φωτισμός σκηνής και LED wall 3×2 μ." ${m.busy?'disabled':''}>${esc(m.q)}</textarea></label>
-    <div class="row" style="gap:8px"><button class="btn pri" data-act="ai-order-run" ${m.busy||!(st&&st.enabled)?'disabled':''}>${p?'↻ Νέα πρόταση':'✨ Ετοίμασε λίστα'}</button><span class="xs muted">Ο βοηθός ελέγχει διαθεσιμότητα${d.start?` για ${fmtD(d.start)}${d.end&&d.end!==d.start?'–'+fmtD(d.end):''}`:''}. Τα συνοδευτικά μπαίνουν αυτόματα.</span></div>
+    <label class="f">Περίγραψε την εκδήλωση (ή επισύναψε το email / PDF του πελάτη)<textarea data-aiq-text rows="4" placeholder="π.χ. Συναυλία Σάββατο στο Δημοτικό Θέατρο Πάτρας, 400 άτομα, live μπάντα 5 ατόμων, φωτισμός σκηνής και LED wall 3×2 μ." ${m.busy?'disabled':''}>${esc(m.q)}</textarea></label>
+    ${aiChips(m.files,'ai-of-del')}
+    <div class="row" style="gap:8px"><button class="btn" data-act="ai-of-add" ${m.busy?'disabled':''}>📎 Επισύναψη</button><button class="btn pri" data-act="ai-order-run" ${m.busy||!(st&&st.enabled)?'disabled':''}>${p?'↻ Νέα πρόταση':'✨ Ετοίμασε λίστα'}</button><span class="xs muted">Ο βοηθός ελέγχει διαθεσιμότητα${d.start?` για ${fmtD(d.start)}${d.end&&d.end!==d.start?'–'+fmtD(d.end):''}`:''}. Τα συνοδευτικά μπαίνουν αυτόματα.</span></div>
     ${body}
   </div>
   <div class="dlg-f"><button class="btn" data-act="modal-close">Κλείσιμο</button>${p&&!m.busy?'<button class="btn pri" data-act="ai-order-apply" data-primary>Προσθήκη στην παραγγελία</button>':''}</div>`, 'lg'); }
@@ -136,10 +163,12 @@ ON_CHANGE.push(el=>{ if(!M||M.type!=='aiorder') return false;
   if(el.dataset.aip!==undefined){ const i=+el.dataset.aip; M.pick[i]={...(M.pick[i]||{}), on:el.checked}; el.closest('tr').classList.toggle('off',!el.checked); return true; }
   if(el.dataset.aia){ M.apply[el.dataset.aia]=el.checked; return true; }
   return false; });
-ACT['ai-order-run']=async()=>{ const m=M, d=UI.draft; const q=(m.q||'').trim(); if(!q) return toast('Γράψε τι θέλεις για την εκδήλωση.', true);
+ACT['ai-of-add']=()=>aiPickFiles(async fs=>{ const m=M; if(!m||m.type!=='aiorder') return; await aiReadFiles(fs, m.files); drawAIOrder(); });
+ACT['ai-of-del']=(el,e)=>{ e&&e.preventDefault(); M.files.splice(+el.dataset.i,1); drawAIOrder(); };
+ACT['ai-order-run']=async()=>{ const m=M, d=UI.draft; const q=(m.q||'').trim(); if(!q&&!m.files.length) return toast('Γράψε τι θέλεις για την εκδήλωση ή επισύναψε αρχείο.', true);
   UI.aiLastQ=q; m.busy=true; m.err=''; m.res=null; m.pick={}; m.step=''; drawAIOrder();
   UI.aiExclude=d.id;
-  try{ m.res=await aiRun({kind:'order', ctx:aiOrderCtx(d), messages:[{role:'user', content:q}], onStep:(n)=>{ if(M===m){ m.step=AI_STEP[n]||'Δουλεύω…'; const w=document.querySelector('.aiwait .small'); if(w) w.textContent=m.step; } }});
+  try{ m.res=await aiRun({kind:'order', ctx:aiOrderCtx(d), messages:[{role:'user', content:aiUserContent(q, m.files)}], onStep:(n)=>{ if(M===m){ m.step=AI_STEP[n]||'Δουλεύω…'; const w=document.querySelector('.aiwait .small'); if(w) w.textContent=m.step; } }});
     const p=m.res.proposal; if(p&&p.start&&!d.start) m.apply.dates=true; }
   catch(e){ m.err=e.error||String(e); }
   UI.aiExclude=null; m.busy=false; if(M===m) drawAIOrder(); aiLoadStatus(true); };
@@ -156,23 +185,33 @@ VIEWS.ai = () => {
   const ex=['Τι μικρόφωνα έχουμε ελεύθερα την Παρασκευή;','Ποιες παραγγελίες έχουμε αυτή την εβδομάδα;','Ποιος από το συνεργείο δουλεύει το Σάββατο;'].concat(NOPRICE()?[]:['Ποιοι πελάτες μάς χρωστάνε;']);
   return `<div class="ph"><div><h1>✨ Βοηθός</h1><p class="sub">Ρώτα ό,τι θέλεις για την αποθήκη, τις παραγγελίες και το συνεργείο</p></div>${chat.length?'<button class="btn" data-act="ai-clear">Νέα συζήτηση</button>':''}</div>
   ${aiNotReady(st)}
-  <div class="card aichat" id="aiChat">${chat.length?chat.map(m=>`<div class="aimsg ${m.role}">${m.role==='user'?esc(m.text):aiMd(m.text)}${m.cost?`<div class="xs faint" style="margin-top:4px">~${m.cost.toFixed(3).replace('.',',')} $</div>`:''}</div>`).join(''):`<div class="aiex"><div class="small muted" style="margin-bottom:8px">Για παράδειγμα:</div>${ex.map(q=>`<button class="chip" data-act="ai-ex" data-q="${esc(q)}">${esc(q)}</button>`).join('')}</div>`}
+  <div class="card aichat" id="aiChat">${chat.length?chat.map(m=>`<div class="aimsg ${m.role}">${m.files&&m.files.length?aiChips(m.files.map(n=>({name:n.name,kind:n.kind}))):''}${m.role==='user'?esc(m.text):aiMd(m.text)}${m.cost?`<div class="xs faint" style="margin-top:4px">~${m.cost.toFixed(3).replace('.',',')} $</div>`:''}</div>`).join(''):`<div class="aiex"><div class="small muted" style="margin-bottom:8px">Για παράδειγμα:</div>${ex.map(q=>`<button class="chip" data-act="ai-ex" data-q="${esc(q)}">${esc(q)}</button>`).join('')}</div>`}
     ${AI.busy?`<div class="aimsg assistant"><span class="spin"></span> <span class="small muted" id="aiStep">${esc(AI.step||'Σκέφτομαι…')}</span></div>`:''}</div>
-  <div class="aiinput"><textarea id="aiQ" rows="2" placeholder="Γράψε την ερώτησή σου…" ${AI.busy?'disabled':''}>${esc(UI.aiDraft||'')}</textarea><button class="btn pri" data-act="ai-send" ${AI.busy||!(st&&st.enabled)?'disabled':''}>Αποστολή</button></div>`;
+  <div class="aiinput" id="aiDrop">${aiChips(UI.aiFiles,'ai-f-del')}<textarea id="aiQ" rows="4" placeholder="Γράψε την ερώτησή σου… (Enter για αποστολή, Shift+Enter για νέα γραμμή — μπορείς να επικολλήσεις ή να σύρεις εδώ φωτογραφίες και PDF)" ${AI.busy?'disabled':''}>${esc(UI.aiDraft||'')}</textarea>
+    <div class="row between"><button class="btn" data-act="ai-f-add" ${AI.busy?'disabled':''}>📎 Επισύναψη αρχείου</button><button class="btn pri" data-act="ai-send" ${AI.busy||!(st&&st.enabled)?'disabled':''}>Αποστολή ➤</button></div></div>`;
 };
 ACT['ai-ex']=el=>{ UI.aiDraft=el.dataset.q; ACT['ai-send'](); };
 ACT['ai-clear']=()=>{ UI.aiChat=[]; UI.aiMsgs=[]; render(); };
-ON_INPUT.push(el=>{ if(el.id==='aiQ'){ UI.aiDraft=el.value; return true; } return false; });
+ON_INPUT.push(el=>{ if(el.id==='aiQ'){ UI.aiDraft=el.value; aiGrow(el); return true; } if(el.hasAttribute&&el.hasAttribute('data-aiq-text')) aiGrow(el); return false; });
+ACT['ai-f-add']=()=>aiPickFiles(async fs=>{ UI.aiFiles=await aiReadFiles(fs, UI.aiFiles||[]); render(); aiScroll(); });
+ACT['ai-f-del']=(el,e)=>{ e&&e.preventDefault(); (UI.aiFiles||[]).splice(+el.dataset.i,1); render(); };
+document.addEventListener('paste', async e=>{ const onChat=e.target&&e.target.id==='aiQ', onOrd=M&&M.type==='aiorder'; if(!onChat&&!onOrd) return;
+  const fs=[...(e.clipboardData?.items||[])].filter(i=>i.kind==='file').map(i=>i.getAsFile()).filter(Boolean); if(!fs.length) return; e.preventDefault();
+  if(onOrd){ await aiReadFiles(fs, M.files); drawAIOrder(); } else { UI.aiFiles=await aiReadFiles(fs, UI.aiFiles||[]); render(); aiScroll(); } });
+document.addEventListener('dragover', e=>{ if(e.target.closest&&(e.target.closest('#aiDrop')||e.target.closest('#aiChat')||(M&&M.type==='aiorder'&&e.target.closest('.dlg')))) e.preventDefault(); });
+document.addEventListener('drop', async e=>{ const ord=M&&M.type==='aiorder'&&e.target.closest&&e.target.closest('.dlg'); const chat=e.target.closest&&(e.target.closest('#aiDrop')||e.target.closest('#aiChat')); if(!ord&&!chat) return; const fs=[...(e.dataTransfer?.files||[])]; if(!fs.length) return; e.preventDefault();
+  if(ord){ await aiReadFiles(fs, M.files); drawAIOrder(); } else { UI.aiFiles=await aiReadFiles(fs, UI.aiFiles||[]); render(); aiScroll(); } });
 document.addEventListener('keydown', e=>{ if(e.target&&e.target.id==='aiQ'&&e.key==='Enter'&&!e.shiftKey){ e.preventDefault(); ACT['ai-send'](); } });
-ACT['ai-send']=async()=>{ const q=(UI.aiDraft||'').trim(); if(!q||AI.busy) return;
-  UI.aiChat=UI.aiChat||[]; UI.aiMsgs=UI.aiMsgs||[]; UI.aiChat.push({role:'user', text:q}); UI.aiDraft=''; AI.busy=true; AI.step=''; render(); aiScroll();
-  let st0=Math.max(0,UI.aiMsgs.length-30); while(st0<UI.aiMsgs.length&&!(UI.aiMsgs[st0].role==='user'&&typeof UI.aiMsgs[st0].content==='string')) st0++;
-  const msgs=UI.aiMsgs.slice(st0); msgs.push({role:'user', content:q});
+ACT['ai-send']=async()=>{ const q=(UI.aiDraft||'').trim(); const files=UI.aiFiles||[]; if((!q&&!files.length)||AI.busy) return;
+  UI.aiChat=UI.aiChat||[]; UI.aiMsgs=UI.aiMsgs||[]; UI.aiChat.push({role:'user', text:q, files:files.map(f=>({name:f.name, kind:f.kind}))}); UI.aiDraft=''; UI.aiFiles=[]; AI.busy=true; AI.step=''; render(); aiScroll();
+  let st0=Math.max(0,UI.aiMsgs.length-30); const isQ=m=>m.role==='user'&&(typeof m.content==='string'||(Array.isArray(m.content)&&!m.content.some(b=>b.type==='tool_result')));
+  while(st0<UI.aiMsgs.length&&!isQ(UI.aiMsgs[st0])) st0++;
+  const msgs=UI.aiMsgs.slice(st0); msgs.push({role:'user', content:aiUserContent(q, files)});
   try{ const r=await aiRun({kind:'ask', messages:msgs, onStep:n=>{ AI.step=AI_STEP[n]||'Δουλεύω…'; const s=$('#aiStep'); if(s) s.textContent=AI.step; }});
     UI.aiMsgs=r.messages; UI.aiChat.push({role:'assistant', text:r.text||'—', cost:r.cost}); }
   catch(e){ UI.aiChat.push({role:'assistant', text:'⚠ '+(e.error||String(e))}); }
   AI.busy=false; render(); aiScroll(); aiLoadStatus(true); };
-function aiScroll(){ setTimeout(()=>{ const c=$('#aiChat'); if(c) c.scrollTop=c.scrollHeight; const q=$('#aiQ'); if(q&&!isM()) q.focus(); },30); }
+function aiScroll(){ setTimeout(()=>{ const c=$('#aiChat'); if(c) c.scrollTop=c.scrollHeight; const q=$('#aiQ'); if(q){ aiGrow(q); if(!isM()) q.focus(); } },30); }
 
 /* ---------- ρυθμίσεις (διαχειριστής) ---------- */
 function aiSetupBody(){ const st=AI.status;
