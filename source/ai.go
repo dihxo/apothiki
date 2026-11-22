@@ -228,3 +228,141 @@ func hAIMessages(w http.ResponseWriter, r *http.Request, u Doc) {
 	w.WriteHeader(200)
 	w.Write(rb)
 }
+
+/* ---------- ιστορικό συζητήσεων βοηθού ---------- */
+
+type aiChat struct {
+	ID      string          `json:"id"`
+	Title   string          `json:"title"`
+	Kind    string          `json:"kind,omitempty"` // "" = συζήτηση, "order" = βοηθός παραγγελίας
+	User    string          `json:"user"`
+	UserID  string          `json:"userId"`
+	Created int64           `json:"created"`
+	Updated int64           `json:"updated"`
+	Cost    float64         `json:"cost"`
+	Chat    json.RawMessage `json:"chat"`
+	Msgs    json.RawMessage `json:"msgs,omitempty"`
+}
+
+var aiChatMu sync.Mutex
+
+func aiChatDir() string { return filepath.Join(dataDir, "ai_chats") }
+
+func aiChatOK(id string) bool {
+	if len(id) < 4 || len(id) > 40 {
+		return false
+	}
+	for _, c := range id {
+		if !(c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c >= '0' && c <= '9' || c == '-' || c == '_') {
+			return false
+		}
+	}
+	return true
+}
+
+func aiChatRead(id string) (*aiChat, error) {
+	b, err := os.ReadFile(filepath.Join(aiChatDir(), id+".json"))
+	if err != nil {
+		return nil, err
+	}
+	var c aiChat
+	if err := json.Unmarshal(b, &c); err != nil {
+		return nil, err
+	}
+	return &c, nil
+}
+
+func uid2(u Doc) string { s, _ := u["id"].(string); return s }
+
+func hAIChats(w http.ResponseWriter, r *http.Request, u Doc) {
+	aiChatMu.Lock()
+	defer aiChatMu.Unlock()
+	ents, _ := os.ReadDir(aiChatDir())
+	all := r.URL.Query().Get("all") == "1" && roleLevel(u) >= 3
+	out := []map[string]any{}
+	for _, e := range ents {
+		if !strings.HasSuffix(e.Name(), ".json") {
+			continue
+		}
+		c, err := aiChatRead(strings.TrimSuffix(e.Name(), ".json"))
+		if err != nil || (!all && c.UserID != uid2(u)) {
+			continue
+		}
+		out = append(out, map[string]any{"id": c.ID, "title": c.Title, "kind": c.Kind, "user": c.User, "created": c.Created, "updated": c.Updated, "cost": c.Cost})
+	}
+	writeJSON(w, 200, out)
+}
+
+func hAIChatGet(w http.ResponseWriter, r *http.Request, u Doc) {
+	id := r.URL.Query().Get("id")
+	if !aiChatOK(id) {
+		fail(w, 400, "Μη έγκυρο αίτημα")
+		return
+	}
+	aiChatMu.Lock()
+	c, err := aiChatRead(id)
+	aiChatMu.Unlock()
+	if err != nil || (c.UserID != uid2(u) && roleLevel(u) < 3) {
+		fail(w, 404, "Δεν βρέθηκε η συζήτηση")
+		return
+	}
+	writeJSON(w, 200, c)
+}
+
+func hAIChatSave(w http.ResponseWriter, r *http.Request, u Doc) {
+	var in aiChat
+	if err := readJSON(r, &in); err != nil || !aiChatOK(in.ID) || len(in.Chat) == 0 {
+		fail(w, 400, "Μη έγκυρα δεδομένα")
+		return
+	}
+	if len(in.Chat)+len(in.Msgs) > 8<<20 {
+		in.Msgs = nil // πολύ μεγάλη: κρατάμε μόνο ό,τι φαίνεται
+	}
+	aiChatMu.Lock()
+	defer aiChatMu.Unlock()
+	os.MkdirAll(aiChatDir(), 0o755)
+	if old, err := aiChatRead(in.ID); err == nil {
+		if old.UserID != uid2(u) && roleLevel(u) < 3 {
+			fail(w, 403, "Δεν έχεις δικαίωμα")
+			return
+		}
+		in.Created, in.UserID, in.User = old.Created, old.UserID, old.User
+	} else {
+		in.Created, in.UserID, in.User = now(), uid2(u), userName(u)
+	}
+	in.Updated = now()
+	if len([]rune(in.Title)) > 90 {
+		in.Title = string([]rune(in.Title)[:90]) + "…"
+	}
+	b, _ := json.Marshal(in)
+	tmp := filepath.Join(aiChatDir(), in.ID+".tmp")
+	if err := os.WriteFile(tmp, b, 0o600); err != nil {
+		fail(w, 500, "Δεν αποθηκεύτηκε")
+		return
+	}
+	os.Rename(tmp, filepath.Join(aiChatDir(), in.ID+".json"))
+	writeJSON(w, 200, map[string]any{"ok": true, "id": in.ID})
+}
+
+func hAIChatDel(w http.ResponseWriter, r *http.Request, u Doc) {
+	var in struct {
+		ID string `json:"id"`
+	}
+	if err := readJSON(r, &in); err != nil || !aiChatOK(in.ID) {
+		fail(w, 400, "Μη έγκυρο αίτημα")
+		return
+	}
+	aiChatMu.Lock()
+	defer aiChatMu.Unlock()
+	c, err := aiChatRead(in.ID)
+	if err != nil {
+		writeJSON(w, 200, map[string]any{"ok": true})
+		return
+	}
+	if c.UserID != uid2(u) && roleLevel(u) < 3 {
+		fail(w, 403, "Δεν έχεις δικαίωμα")
+		return
+	}
+	os.Remove(filepath.Join(aiChatDir(), in.ID+".json"))
+	writeJSON(w, 200, map[string]any{"ok": true})
+}

@@ -169,7 +169,9 @@ ACT['ai-order-run']=async()=>{ const m=M, d=UI.draft; const q=(m.q||'').trim(); 
   UI.aiLastQ=q; m.busy=true; m.err=''; m.res=null; m.pick={}; m.step=''; drawAIOrder();
   UI.aiExclude=d.id;
   try{ m.res=await aiRun({kind:'order', ctx:aiOrderCtx(d), messages:[{role:'user', content:aiUserContent(q, m.files)}], onStep:(n)=>{ if(M===m){ m.step=AI_STEP[n]||'Δουλεύω…'; const w=document.querySelector('.aiwait .small'); if(w) w.textContent=m.step; } }});
-    const p=m.res.proposal; if(p&&p.start&&!d.start) m.apply.dates=true; }
+    const p=m.res.proposal; if(p&&p.start&&!d.start) m.apply.dates=true;
+    const txt=[p&&p.summary||m.res.text||'', ...((p&&p.warnings)||[]).map(w=>'⚠ '+w), ...((p&&p.lines)||[]).filter(l=>D.products[l.product_id]).map(l=>`- ${prodName(l.product_id)} ×${l.qty}${l.reason?' — '+l.reason:''}`)].filter(Boolean).join('\n');
+    aiSaveChat({id:aiNewId(), kind:'order', title:`${d.number||'Παραγγελία'}: ${q||m.files.map(f=>f.name).join(', ')}`, cost:m.res.cost, chat:[{role:'user', text:`[${d.number||'Παραγγελία'}] ${q}`, files:m.files.map(f=>({name:f.name, kind:f.kind}))},{role:'assistant', text:txt, cost:m.res.cost}]}); }
   catch(e){ m.err=e.error||String(e); }
   UI.aiExclude=null; m.busy=false; if(M===m) drawAIOrder(); aiLoadStatus(true); };
 ACT['ai-order-apply']=()=>{ const m=M, d=UI.draft, p=m.res&&m.res.proposal; if(!p||!d) return;
@@ -178,20 +180,40 @@ ACT['ai-order-apply']=()=>{ const m=M, d=UI.draft, p=m.res&&m.res.proposal; if(!
   let n=0; (p.lines||[]).forEach((l,i)=>{ const pk=m.pick[i]||{}; if(pk.on===false||!D.products[l.product_id]) return; const q=pk.qty??l.qty; if(q>0){ addProductLine(l.product_id, q); n++; } });
   closeModal(); dirty(); toast(`Προστέθηκαν ${n} προϊόντα από τον βοηθό`); };
 
+/* ---------- ιστορικό ---------- */
+function aiNewId(){ return 'c'+Date.now().toString(36)+Math.random().toString(36).slice(2,6); }
+function aiStripMsgs(msgs){ // τα συνημμένα δεν φυλάγονται (μέγεθος)· μένει σημείωση
+  return (msgs||[]).map(m=>Array.isArray(m.content)?{role:m.role, content:m.content.map(b=>b.type==='image'?{type:'text',text:'[Συνημμένη φωτογραφία — δεν φυλάχτηκε στο ιστορικό]'}:b.type==='document'?{type:'text',text:`[Συνημμένο PDF «${b.title||''}» — δεν φυλάχτηκε στο ιστορικό]`}:b)}:m); }
+async function aiLoadChats(){ try{ AI.chats=await api('/api/ai/chats'+(UI.aiAll?'?all=1':'')); }catch(e){ AI.chats=AI.chats||[]; } return AI.chats; }
+async function aiSaveChat(rec){ try{ await api('/api/ai/chat/save', rec); aiLoadChats().then(()=>{ if(route()==='ai'&&!AI.busy) render(); }); }catch(e){ console.warn(e); } }
+function aiSaveCurrent(cost){ if(!UI.aiChat||!UI.aiChat.length) return; UI.aiChatId=UI.aiChatId||aiNewId(); UI.aiCost=num(UI.aiCost)+num(cost);
+  const first=UI.aiChat.find(m=>m.role==='user'); aiSaveChat({id:UI.aiChatId, title:(first&&(first.text||first.files?.map(f=>f.name).join(', ')))||'Συζήτηση', kind:'', cost:UI.aiCost, chat:UI.aiChat, msgs:aiStripMsgs(UI.aiMsgs)}); }
+ACT['ai-open']=async(el,e)=>{ e&&e.preventDefault(); if(AI.busy) return; try{ const c=await api('/api/ai/chat?id='+encodeURIComponent(el.dataset.id));
+  UI.aiChat=c.chat||[]; UI.aiMsgs=(c.msgs&&c.msgs.length)?c.msgs:(c.chat||[]).filter(m=>m.text).map(m=>({role:m.role, content:m.text})); UI.aiChatId=c.id; UI.aiCost=num(c.cost); UI.aiHist=false; render(); aiScroll(); }catch(err){ toast(err.error,true); } };
+ACT['ai-chat-del']=(el,e)=>{ e&&e.preventDefault(); e&&e.stopPropagation(); const id=el.dataset.id; confirmBox('Διαγραφή συζήτησης;','Θα διαγραφεί οριστικά από το ιστορικό.','Διαγραφή', async()=>{ try{ await api('/api/ai/chat/del',{id}); if(UI.aiChatId===id){ UI.aiChat=[]; UI.aiMsgs=[]; UI.aiChatId=null; } await aiLoadChats(); render(); }catch(err){ toast(err.error,true); } }); };
+ACT['ai-hist']=()=>{ UI.aiHist=!UI.aiHist; render(); };
+ACT['ai-all']=async el=>{ UI.aiAll=el.checked; await aiLoadChats(); render(); };
+function aiHistHTML(){ const list=sortBy(AI.chats||[], c=>-c.updated); const d=ts=>{ const x=new Date(ts); return x.toLocaleDateString('el-GR',{day:'2-digit',month:'2-digit'})+' '+x.toLocaleTimeString('el-GR',{hour:'2-digit',minute:'2-digit'}); };
+  return `<div class="aihist"><div class="row between" style="margin-bottom:8px"><b>Ιστορικό</b><button class="btn sm" data-act="ai-clear">+ Νέα</button></div>
+  ${can('admin')?`<label class="xs muted row" style="gap:6px;margin-bottom:8px"><input type="checkbox" data-act="ai-all" ${UI.aiAll?'checked':''}> όλων των χρηστών</label>`:''}
+  ${AI.chats?(list.length?list.map(c=>`<a href="#" class="aihi${UI.aiChatId===c.id?' on':''}" data-act="ai-open" data-id="${c.id}"><span class="aiht">${c.kind==='order'?'✨ ':''}${esc(c.title||'Συζήτηση')}</span><span class="xs muted">${d(c.updated)}${UI.aiAll&&c.user?' · '+esc(c.user):''}</span><i data-act="ai-chat-del" data-id="${c.id}" title="Διαγραφή">✕</i></a>`).join(''):'<div class="xs muted">Δεν υπάρχουν ακόμα συζητήσεις.</div>'):'<div class="xs muted">Φόρτωση…</div>'}</div>`; }
+
 /* ---------- σελίδα ερωτήσεων ---------- */
 VIEWS.ai = () => {
   if(!AI.status){ aiLoadStatus().then(()=>{ if(route()==='ai') render(); }); }
   const st=AI.status; const chat=UI.aiChat||[];
   const ex=['Τι μικρόφωνα έχουμε ελεύθερα την Παρασκευή;','Ποιες παραγγελίες έχουμε αυτή την εβδομάδα;','Ποιος από το συνεργείο δουλεύει το Σάββατο;'].concat(NOPRICE()?[]:['Ποιοι πελάτες μάς χρωστάνε;']);
-  return `<div class="ph"><div><h1>✨ Βοηθός</h1><p class="sub">Ρώτα ό,τι θέλεις για την αποθήκη, τις παραγγελίες και το συνεργείο</p></div>${chat.length?'<button class="btn" data-act="ai-clear">Νέα συζήτηση</button>':''}</div>
+  if(!AI.chats&&!AI.chatsLoading){ AI.chatsLoading=true; aiLoadChats().then(()=>{ AI.chatsLoading=false; if(route()==='ai') render(); }); }
+  return `<div class="ph"><div><h1>✨ Βοηθός</h1><p class="sub">Ρώτα ό,τι θέλεις για την αποθήκη, τις παραγγελίες και το συνεργείο</p></div><div class="row" style="gap:8px">${isM()?`<button class="btn" data-act="ai-hist">🕘 Ιστορικό</button>`:''}${chat.length?'<button class="btn" data-act="ai-clear">Νέα συζήτηση</button>':''}</div></div>
   ${aiNotReady(st)}
+  <div class="aiwrap">${!isM()||UI.aiHist?aiHistHTML():''}<div class="aimain">
   <div class="card aichat" id="aiChat">${chat.length?chat.map(m=>`<div class="aimsg ${m.role}">${m.files&&m.files.length?aiChips(m.files.map(n=>({name:n.name,kind:n.kind}))):''}${m.role==='user'?esc(m.text):aiMd(m.text)}${m.cost?`<div class="xs faint" style="margin-top:4px">~${m.cost.toFixed(3).replace('.',',')} $</div>`:''}</div>`).join(''):`<div class="aiex"><div class="small muted" style="margin-bottom:8px">Για παράδειγμα:</div>${ex.map(q=>`<button class="chip" data-act="ai-ex" data-q="${esc(q)}">${esc(q)}</button>`).join('')}</div>`}
     ${AI.busy?`<div class="aimsg assistant"><span class="spin"></span> <span class="small muted" id="aiStep">${esc(AI.step||'Σκέφτομαι…')}</span></div>`:''}</div>
   <div class="aiinput" id="aiDrop">${aiChips(UI.aiFiles,'ai-f-del')}<textarea id="aiQ" rows="4" placeholder="Γράψε την ερώτησή σου… (Enter για αποστολή, Shift+Enter για νέα γραμμή — μπορείς να επικολλήσεις ή να σύρεις εδώ φωτογραφίες και PDF)" ${AI.busy?'disabled':''}>${esc(UI.aiDraft||'')}</textarea>
-    <div class="row between"><button class="btn" data-act="ai-f-add" ${AI.busy?'disabled':''}>📎 Επισύναψη αρχείου</button><button class="btn pri" data-act="ai-send" ${AI.busy||!(st&&st.enabled)?'disabled':''}>Αποστολή ➤</button></div></div>`;
+    <div class="row between"><button class="btn" data-act="ai-f-add" ${AI.busy?'disabled':''}>📎 Επισύναψη αρχείου</button><button class="btn pri" data-act="ai-send" ${AI.busy||!(st&&st.enabled)?'disabled':''}>Αποστολή ➤</button></div></div></div></div>`;
 };
 ACT['ai-ex']=el=>{ UI.aiDraft=el.dataset.q; ACT['ai-send'](); };
-ACT['ai-clear']=()=>{ UI.aiChat=[]; UI.aiMsgs=[]; render(); };
+ACT['ai-clear']=()=>{ if(AI.busy) return; UI.aiChat=[]; UI.aiMsgs=[]; UI.aiChatId=null; UI.aiCost=0; UI.aiHist=false; render(); };
 ON_INPUT.push(el=>{ if(el.id==='aiQ'){ UI.aiDraft=el.value; aiGrow(el); return true; } if(el.hasAttribute&&el.hasAttribute('data-aiq-text')) aiGrow(el); return false; });
 ACT['ai-f-add']=()=>aiPickFiles(async fs=>{ UI.aiFiles=await aiReadFiles(fs, UI.aiFiles||[]); render(); aiScroll(); });
 ACT['ai-f-del']=(el,e)=>{ e&&e.preventDefault(); (UI.aiFiles||[]).splice(+el.dataset.i,1); render(); };
@@ -208,7 +230,7 @@ ACT['ai-send']=async()=>{ const q=(UI.aiDraft||'').trim(); const files=UI.aiFile
   while(st0<UI.aiMsgs.length&&!isQ(UI.aiMsgs[st0])) st0++;
   const msgs=UI.aiMsgs.slice(st0); msgs.push({role:'user', content:aiUserContent(q, files)});
   try{ const r=await aiRun({kind:'ask', messages:msgs, onStep:n=>{ AI.step=AI_STEP[n]||'Δουλεύω…'; const s=$('#aiStep'); if(s) s.textContent=AI.step; }});
-    UI.aiMsgs=r.messages; UI.aiChat.push({role:'assistant', text:r.text||'—', cost:r.cost}); }
+    UI.aiMsgs=r.messages; UI.aiChat.push({role:'assistant', text:r.text||'—', cost:r.cost}); aiSaveCurrent(r.cost); }
   catch(e){ UI.aiChat.push({role:'assistant', text:'⚠ '+(e.error||String(e))}); }
   AI.busy=false; render(); aiScroll(); aiLoadStatus(true); };
 function aiScroll(){ setTimeout(()=>{ const c=$('#aiChat'); if(c) c.scrollTop=c.scrollHeight; const q=$('#aiQ'); if(q){ aiGrow(q); if(!isM()) q.focus(); } },30); }

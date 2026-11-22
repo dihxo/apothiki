@@ -684,3 +684,13 @@ tbody.ogrp tr.gsum .gs b{color:var(--ink);font-size:14.5px}
 .aimsg .aichips{margin-bottom:6px}
 .aichat{max-height:calc(100vh - 420px)}
 .aimsg.user{white-space:pre-wrap}.aimsg.user .aichips{white-space:normal}
+
+.aiwrap{display:flex;gap:16px;align-items:flex-start}.aimain{flex:1;min-width:0}
+.aihist{width:270px;flex:none;background:#fff;border:1px solid var(--line);border-radius:14px;padding:12px;max-height:calc(100vh - 170px);overflow:auto}
+.aihi{display:grid;grid-template-columns:1fr auto;gap:2px 6px;padding:8px 10px;border-radius:10px;color:var(--ink);text-decoration:none;position:relative}
+.aihi:hover{background:var(--soft)}.aihi.on{background:#fff3c4}
+.aihi .aiht{font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;grid-column:1}
+.aihi .xs{grid-column:1}
+.aihi i{grid-column:2;grid-row:1/3;align-self:center;font-style:normal;color:var(--muted);opacity:0;padding:2px 4px;cursor:pointer}
+.aihi:hover i,.aihi.on i{opacity:1}
+@media (max-width:760px){ .aiwrap{flex-direction:column}.aihist{width:100%;max-height:50vh} .aihi i{opacity:1} }
