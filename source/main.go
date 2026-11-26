@@ -773,6 +773,10 @@ func hBatch(w http.ResponseWriter, r *http.Request, u Doc) {
 			fail(w, 403, "Μόνο οι διαχειριστές αλλάζουν τις ρυθμίσεις")
 			return
 		}
+		if isTech(u) && (op.Coll == "crew" || op.Coll == "vehicles") {
+			fail(w, 403, "Οι τεχνικοί δεν μπορούν να αλλάζουν τα στοιχεία του συνεργείου και των οχημάτων")
+			return
+		}
 	}
 	mu.Lock()
 	for _, op := range in.Ops {

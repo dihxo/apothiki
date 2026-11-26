@@ -1,3 +1,5 @@
+/* οι τεχνικοί βλέπουν αλλά δεν αλλάζουν τα στοιχεία του συνεργείου/οχημάτων */
+function crewCanEdit(){ return can('staff')&&!NOPRICE(); }
 /* ===================== ΣΥΝΕΡΓΕΙΟ: άτομα, πρόγραμμα, αναθέσεις σε παραγγελίες ===================== */
 UI.crewTab = UI.crewTab || 'people';
 UI.crewType = UI.crewType || 'all';
@@ -13,7 +15,7 @@ function rateLabel(v, basis){ return num(v) ? `${money(num(v))} ${basis==='hour'
 /* ---------- σελίδα ---------- */
 VIEWS.crew = () => {
   const tabs=`<div class="tabs">${[['people','Άτομα'],['vehicles','Οχήματα'],['schedule','Πρόγραμμα']].map(([k,l])=>`<button class="${UI.crewTab===k?'on':''}" data-act="tab" data-k="crewTab" data-v="${k}">${l}</button>`).join('')}</div>`;
-  const head=`<div class="ph"><div><h1>Συνεργείο</h1><p class="sub">Μόνιμο προσωπικό, εξωτερικοί συνεργάτες και πρόγραμμα εργασιών</p></div><div class="row">${can('staff')&&!NOPRICE()?`<button class="btn keep-m" data-act="acl-open">📋 Λίστα ατόμων & οχημάτων (PDF)</button>`:''}${can('staff')?`<button class="btn keep-m" data-act="crew-link">🔗 Σύνδεσμος για το προσωπικό</button>${UI.crewTab==='vehicles'?'<button class="btn pri" data-act="veh-new">+ Νέο όχημα</button>':'<button class="btn pri" data-act="crew-new">+ Νέο άτομο</button>'}`:''}</div></div>`;
+  const head=`<div class="ph"><div><h1>Συνεργείο</h1><p class="sub">Μόνιμο προσωπικό, εξωτερικοί συνεργάτες και πρόγραμμα εργασιών</p></div><div class="row">${can('staff')&&!NOPRICE()?`<button class="btn keep-m" data-act="acl-open">📋 Λίστα ατόμων & οχημάτων (PDF)</button>`:''}${crewCanEdit()?`<button class="btn keep-m" data-act="crew-link">🔗 Σύνδεσμος για το προσωπικό</button>${UI.crewTab==='vehicles'?'<button class="btn pri" data-act="veh-new">+ Νέο όχημα</button>':'<button class="btn pri" data-act="crew-new">+ Νέο άτομο</button>'}`:''}</div></div>`;
   return head+tabs+(UI.crewTab==='schedule'?crewSchedule():UI.crewTab==='vehicles'?crewVehicles():crewPeople());
 };
 function crewPeople(){
@@ -109,7 +111,7 @@ function drawCrewModal(){
   const up=sortBy(hist.filter(x=>(x.a.end||x.a.start)>=t&&CREW_ST.includes(x.o.status)),x=>x.a.start);
   const past=sortBy(hist.filter(x=>(x.a.end||x.a.start)<t||!CREW_ST.includes(x.o.status)),x=>x.a.start).reverse();
   const m30=past.filter(x=>x.a.start>=addDays(t,-30)&&x.o.status!=='cancelled');
-  const ro=!can('staff');
+  const ro=!crewCanEdit();
   openModal(`<div class="dlg-h"><h2>${c.id?esc(c.name):'Νέο άτομο'}</h2><button class="icon" data-act="modal-close">✕</button></div>
   <div class="dlg-b">
     <div class="seg"><button class="${c.type!=='freelance'?'on':''}" data-act="cw-set" data-k="type" data-v="staff">Μόνιμος υπάλληλος</button><button class="${c.type==='freelance'?'on':''}" data-act="cw-set" data-k="type" data-v="freelance">Εξωτερικός συνεργάτης</button></div>
@@ -237,14 +239,14 @@ function fmtM(v){ return v===''||v==null?'—':String(num(v).toLocaleString('el-
 function vehSorted(){ return sortBy(Object.values(D.vehicles||{}), x=>(x.inactive?'1':'0')+(x.name||'')); }
 function crewVehicles(){
   const list=vehSorted();
-  if(!list.length) return `<div class="card empty"><b>Δεν έχεις προσθέσει οχήματα ακόμη</b>Πρόσθεσε τα οχήματα της εταιρείας με πινακίδα, μήκος και ύψος.${can('staff')?'<div style="margin-top:12px"><button class="btn pri" data-act="veh-new">+ Νέο όχημα</button></div>':''}</div>`;
+  if(!list.length) return `<div class="card empty"><b>Δεν έχεις προσθέσει οχήματα ακόμη</b>Πρόσθεσε τα οχήματα της εταιρείας με πινακίδα, μήκος και ύψος.${crewCanEdit()?'<div style="margin-top:12px"><button class="btn pri" data-act="veh-new">+ Νέο όχημα</button></div>':''}</div>`;
   if(isM()) return `<div class="card p0"><div class="mlist">${list.map(x=>`<a class="mrow" href="#" data-act="veh-edit" data-id="${x.id}"><span class="cav" style="background:#555;margin:0">🚚</span><div class="mrow-m"><div class="mrow-n">${esc(x.plate||'—')} · ${esc(x.name||'')}</div><div class="mrow-s">Μήκος ${fmtM(x.length)} · Ύψος ${fmtM(x.height)}</div></div></a>`).join('')}</div></div>`;
   return `<div class="card p0"><div class="tw"><table><thead><tr><th>Όχημα</th><th>Πινακίδα</th><th class="num">Μήκος</th><th class="num">Ύψος</th><th>Σημειώσεις</th></tr></thead><tbody>${list.map(x=>`<tr class="click" data-act="veh-edit" data-id="${x.id}"><td><b>${esc(x.name||'—')}</b>${x.inactive?' <span class="tag">Ανενεργό</span>':''}</td><td class="mono"><b>${esc(x.plate||'')}</b></td><td class="num">${fmtM(x.length)}</td><td class="num">${fmtM(x.height)}</td><td class="small muted">${esc(x.notes||'')}</td></tr>`).join('')}</tbody></table></div></div>`;
 }
 ACT['veh-new']=()=>vehModal(null);
 ACT['veh-edit']=(el,e)=>{ if(e) e.preventDefault(); vehModal(el.dataset.id); };
 function vehModal(id){ const x=id?deepCopy(D.vehicles[id]):{id:null,name:'',plate:'',length:'',height:'',notes:''}; M={type:'veh', x, redraw:drawVehModal}; drawVehModal(); }
-function drawVehModal(){ const x=M.x, ro=!can('staff');
+function drawVehModal(){ const x=M.x, ro=!crewCanEdit();
   openModal(`<div class="dlg-h"><h2>${x.id?esc(x.plate||x.name):'Νέο όχημα'}</h2><button class="icon" data-act="modal-close">✕</button></div>
   <div class="dlg-b">
     <div class="f2"><label class="f">Όχημα (μάρκα / μοντέλο)<input type="text" data-vh="name" value="${esc(x.name||'')}" placeholder="π.χ. Mercedes Sprinter" autofocus ${ro?'disabled':''}></label>
