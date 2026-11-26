@@ -145,7 +145,7 @@ VIEWS.reports = () => {
   for(const o of orders){ const k=o.start.slice(0,7); if(k in months) months[k]+=orderTotals(o).net; }
   const maxM=Math.max(1,...Object.values(months));
   // products
-  const P={}; for(const o of orders){ const tt=orderTotals(o); for(const l of o.lines||[]){ if(!l.pid) continue; const r=P[l.pid]=P[l.pid]||{n:0,qty:0,unitDays:0,rev:0}; r.n++; r.qty+=num(l.qty); r.unitDays+=num(l.qty)*tt.days; r.rev+=lineTotal(l,tt.days)*(1-num(o.discount)/100); } }
+  const P={}; for(const o of orders){ const tt=orderTotals(o); for(const l of o.lines||[]){ if(!l.pid) continue; const r=P[l.pid]=P[l.pid]||{n:0,qty:0,unitDays:0,rev:0}; r.n++; r.qty+=num(l.qty); r.unitDays+=num(l.qty)*lineDays(l,o); r.rev+=lineTotal(l,lineDays(l,o))*(1-num(o.discount)/100); } }
   const topP=Object.entries(P).sort((a,b)=>b[1].rev-a[1].rev);
   const maxP=Math.max(1,...topP.map(x=>x[1].rev));
   // utilization

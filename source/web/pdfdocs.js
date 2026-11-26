@@ -64,7 +64,7 @@ async function pdfOrderDoc(o, kind){
     let y=pdfDocHead(P, logo, titles[kind], meta);
     y=pdfCards(P, y, [
       {lab:'Προς', big:cn||'—', lines:[c.company&&c.name?c.name:'', [c.address,c.city].filter(Boolean).join(', '), [c.vat?'ΑΦΜ '+c.vat:'', c.doy?'ΔΟΥ '+c.doy:''].filter(Boolean).join(' · '), [c.phone,c.email].filter(Boolean).join(' · ')]},
-      {lab:'Εκδήλωση', big:o.name||'—', lines:[o.venue?'Χώρος: '+o.venue:'', {t:`${wdD(o.start)} ${o.startTime||''} → ${wdD(o.end)} ${o.endTime||''}`, b:true}, `${tt.days} ${tt.days===1?'ημέρα':'ημέρες'} ενοικίασης`]}
+      {lab:'Εκδήλωση', big:o.name||'—', lines:[o.venue?'Χώρος: '+o.venue:'', {t:`${wdD(o.start)} ${o.startTime||''} → ${wdD(o.end)} ${o.endTime||''}`, b:true}, `${orderDays(o)} ${orderDays(o)===1?'ημέρα':'ημέρες'} ενοικίασης`]}
     ])+7;
     if(kind==='delivery'){
       const need=expandLines(o.lines);
@@ -97,9 +97,9 @@ async function pdfOrderDoc(o, kind){
       rows.push({h, draw:(C,y)=>{ const mid=y+h/2; P.text(C[0].center,mid+1.2,String(nn),{size:7.8,color:PC.faint,align:'center'});
         if(hasImg&&im) P.imageFit(im, C[1].x+1, y+1.5, 11.5, h-3);
         const di=hasImg?2:1; let ty=y+(h-(nl.length*4.3+sl.length*3.5))/2+3.3; nl.forEach(t=>{ P.text(C[di].left,ty,t,{size:9.6,bold:true}); ty+=4.3; }); sl.forEach(t=>{ P.text(C[di].left,ty-0.4,t,{size:7.8,color:'#8a8a8e'}); ty+=3.5; });
-        P.text(C[ci('Ποσ.')].right,mid+1.2,String(num(l.qty)),{size:9,align:'right'}); P.text(C[ci('Ημέρες')].right,mid+1.2,l.priceType==='flat'?'—':String(tt.days),{size:9,align:'right'});
-        P.text(C[ci('Τιμή μον.')].right,mid+1.2,money(lineUnitPeriod(l,tt.days)),{size:9,align:'right'}); if(hasDisc) P.text(C[ci('Έκπτ.')].right,mid+1.2,num(l.discount)?num(l.discount)+'%':'',{size:9,align:'right'});
-        P.text(C[ci('Αξία')].right,mid+1.2,money(lineTotal(l,tt.days)),{size:9.2,bold:true,align:'right'}); }}); }
+        P.text(C[ci('Ποσ.')].right,mid+1.2,String(num(l.qty)),{size:9,align:'right'}); P.text(C[ci('Ημέρες')].right,mid+1.2,l.priceType==='flat'?'—':String(lineDays(l,o)),{size:9,align:'right'});
+        P.text(C[ci('Τιμή μον.')].right,mid+1.2,money(lineUnitPeriod(l,lineDays(l,o))),{size:9,align:'right'}); if(hasDisc) P.text(C[ci('Έκπτ.')].right,mid+1.2,num(l.discount)?num(l.discount)+'%':'',{size:9,align:'right'});
+        P.text(C[ci('Αξία')].right,mid+1.2,money(lineTotal(l,lineDays(l,o))),{size:9.2,bold:true,align:'right'}); }}); }
     if(grp) rows.push(sumRow('Σύνολο '+g.name, g.total)); }
     const crewList=(o.crew||[]).filter(a=>a.bill!==false&&crewCharge(a)>0);
     if(crewList.length){ rows.push({sec:'Τεχνικό προσωπικό', h:6});

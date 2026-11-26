@@ -221,6 +221,9 @@ function unitState(u){
 
 /* ---------- pricing ---------- */
 function orderDays(o){ return o.start&&o.end ? Math.max(1, diffDays(o.start,o.end)+1) : 1; }
+/* ημέρες χρέωσης: από το ημερολόγιο, εκτός αν οριστούν χειροκίνητα (σε όλη την παραγγελία ή ανά γραμμή) */
+function chargeDays(o){ const n=Math.round(num(o.chargeDays)); return n>0?n:orderDays(o); }
+function lineDays(l,o){ const n=Math.round(num(l.days)); return n>0?n:chargeDays(o); }
 function hasExtra(l){ return l.priceType!=='flat' && !l.tiered && l.extraPrice!=='' && l.extraPrice!=null && num(l.extraPrice)!==num(l.price); }
 /* κλιμακωτή χρέωση: 1η ημέρα 100%, 2η 20%, 3η 15%, 4η 10%, 5η και κάθε επόμενη 5% */
 const TIER_PCT=[20,15,10,5];
@@ -261,12 +264,12 @@ function mainCatOf(catId){ let c=D.categories[catId], g=0; while(c&&c.parent&&D.
 function lineGroup(l){ if(l.pid){ const p=D.products[l.pid]; return (p&&mainCatOf(p.cat))||'_misc'; } return (l.cat&&D.categories[l.cat])?mainCatOf(l.cat):'_misc'; }
 function groupName(g){ return g==='_misc'?'Λοιπά':((D.categories[g]?.name||'Λοιπά').replace(/^\s*\d+\s*[.)]\s*/,'')); }
 function useGroups(o){ return o.groupCats!==false; }
-function orderGroups(o){ const days=orderDays(o), m=new Map();
-  (o.lines||[]).forEach((l,i)=>{ const g=lineGroup(l); if(!m.has(g)) m.set(g,{id:g, name:groupName(g), sort:g==='_misc'?'￿':(D.categories[g]?.name||''), idx:[], total:0}); const x=m.get(g); x.idx.push(i); x.total+=lineTotal(l,days); });
+function orderGroups(o){ const m=new Map();
+  (o.lines||[]).forEach((l,i)=>{ const g=lineGroup(l); if(!m.has(g)) m.set(g,{id:g, name:groupName(g), sort:g==='_misc'?'￿':(D.categories[g]?.name||''), idx:[], total:0}); const x=m.get(g); x.idx.push(i); x.total+=lineTotal(l,lineDays(l,o)); });
   return [...m.values()].map(x=>({...x,total:r2(x.total)})).sort((a,b)=>a.sort.localeCompare(b.sort,'el',{numeric:true})); }
 function orderTotals(o){
-  const days=orderDays(o); let sub=0;
-  for(const l of o.lines||[]) sub+=lineTotal(l,days);
+  const days=chargeDays(o); let sub=0;
+  for(const l of o.lines||[]) sub+=lineTotal(l,lineDays(l,o));
   const equip=r2(sub); let crewCh=0, crewCo=0; for(const a of o.crew||[]){ crewCh+=crewCharge(a); crewCo+=crewCost(a); }
   crewCh=r2(crewCh); crewCo=r2(crewCo); sub=r2(equip+crewCh); const disc=r2(sub*num(o.discount)/100); const net=r2(sub-disc); const vr=(o.vatRate!==undefined&&o.vatRate!==''&&o.vatRate!==null)?num(o.vatRate):vatRate(); const vat=r2(net*vr/100);
   const total=r2(net+vat); const paid=r2((o.payments||[]).reduce((s,p)=>s+num(p.amount),0));

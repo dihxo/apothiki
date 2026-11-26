@@ -206,9 +206,9 @@ VIEWS.order = id => {
     return `<tr data-li="${i}"><td><div class="lrow">${!ro&&d.lines.length>1?'<span class="drag" title="Σύρε για αλλαγή σειράς" aria-label="Μετακίνηση">⋮⋮</span>':''}<div class="grow" style="min-width:0">${name}${l.accOf?`<div class="xs acctag">↳ συνοδευτικό${(()=>{ const pl=d.lines.find(x=>x.id===l.accOf); return pl&&D.products[pl.pid]?' του '+esc(D.products[pl.pid].name):''; })()}${l.accManual?' · χειροκίνητη ποσότητα':''}</div>`:''}${sub}${problem}</div></div></td>
       <td>${avail}</td>
       <td>${ro?`<b>${num(l.qty)}</b>`:`<span class="qbox"><button data-act="o-qty" data-i="${i}" data-d="-1">−</button><input type="number" min="0" step="1" value="${esc(l.qty)}" data-ol="${i}" data-f="qty"><button data-act="o-qty" data-i="${i}" data-d="1">+</button></span>`}</td>
-      <td class="pr" style="white-space:nowrap"><select data-ol="${i}" data-f="priceType" ${ro?'disabled':''} style="padding:5px 4px;font-size:12px;max-width:96px"><option value="day" ${l.priceType!=='flat'?'selected':''}>/ημέρα ×${tt.days}</option><option value="flat" ${l.priceType==='flat'?'selected':''}>περιόδου</option></select> <input type="number" class="price" min="0" step="0.01" value="${esc(l.price)}" data-ol="${i}" data-f="price" ${ro?'disabled':''} title="${l.priceType==='flat'?'Τιμή για όλη την περίοδο':'Τιμή 1ης ημέρας'}">${l.priceType!=='flat'&&tt.days>1&&l.tiered?`<div class="xs muted" style="margin-top:3px;text-align:right" title="${TIER_TXT}">κλιμακωτά ${tt.days} ημ. = ${Math.round(tierFactor(tt.days)*100)}% ${ro?'':`<a href="#" data-act="o-line-untier" data-i="${i}" title="Αλλαγή σε σταθερή τιμή επόμενων ημερών">✎</a>`}</div>`:''}${l.priceType!=='flat'&&tt.days>1&&!l.tiered?`<div class="xs muted" style="margin-top:3px;text-align:right">επόμενες ${tt.days-1} ημ. × <input type="number" min="0" step="0.01" value="${esc(hasExtra(l)?l.extraPrice:'')}" placeholder="${esc(l.price)}" data-ol="${i}" data-f="extraPrice" ${ro?'disabled':''} style="width:70px;padding:2px 5px;font-size:12px;text-align:right" title="Τιμή για κάθε επόμενη ημέρα (κενό = ίδια με την 1η)"> €</div>`:''}</td>
+      <td class="pr" style="white-space:nowrap"><select data-ol="${i}" data-f="priceType" ${ro?'disabled':''} style="padding:5px 4px;font-size:12px;max-width:96px"><option value="day" ${l.priceType!=='flat'?'selected':''}>/ημέρα</option><option value="flat" ${l.priceType==='flat'?'selected':''}>περιόδου</option></select> <input type="number" class="price" min="0" step="0.01" value="${esc(l.price)}" data-ol="${i}" data-f="price" ${ro?'disabled':''} title="${l.priceType==='flat'?'Τιμή για όλη την περίοδο':'Τιμή 1ης ημέρας'}">${l.priceType!=='flat'?`<div class="ldays${num(l.days)>0?' set':''}" title="Ημέρες χρέωσης για αυτό το προϊόν (κενό = όσες όλης της παραγγελίας)">× <input type="number" min="1" step="1" value="${num(l.days)>0?num(l.days):''}" placeholder="${chargeDays(d)}" data-ol="${i}" data-f="days" ${ro?'disabled':''}> ημ.${num(l.days)>0&&!ro?` <a href="#" data-act="o-line-days-reset" data-i="${i}" title="Όπως όλη η παραγγελία">↺</a>`:''}</div>`:''}${l.priceType!=='flat'&&lineDays(l,d)>1&&l.tiered?`<div class="xs muted" style="margin-top:3px;text-align:right" title="${TIER_TXT}">κλιμακωτά ${lineDays(l,d)} ημ. = ${Math.round(tierFactor(lineDays(l,d))*100)}% ${ro?'':`<a href="#" data-act="o-line-untier" data-i="${i}" title="Αλλαγή σε σταθερή τιμή επόμενων ημερών">✎</a>`}</div>`:''}${l.priceType!=='flat'&&lineDays(l,d)>1&&!l.tiered?`<div class="xs muted" style="margin-top:3px;text-align:right">επόμενες ${lineDays(l,d)-1} ημ. × <input type="number" min="0" step="0.01" value="${esc(hasExtra(l)?l.extraPrice:'')}" placeholder="${esc(l.price)}" data-ol="${i}" data-f="extraPrice" ${ro?'disabled':''} style="width:70px;padding:2px 5px;font-size:12px;text-align:right" title="Τιμή για κάθε επόμενη ημέρα (κενό = ίδια με την 1η)"> €</div>`:''}</td>
       <td class="pr"><input type="number" class="pct" min="0" max="100" step="1" value="${esc(l.discount||'')}" placeholder="0%" data-ol="${i}" data-f="discount" ${ro?'disabled':''} title="Έκπτωση γραμμής %"></td>
-      <td class="num b pr" style="white-space:nowrap">${money(lineTotal(l,tt.days))}</td>
+      <td class="num b pr" style="white-space:nowrap">${money(lineTotal(l,lineDays(l,d)))}</td>
       <td class="num">${ro?'':`<button class="icon" data-act="o-line-del" data-i="${i}" title="Αφαίρεση">✕</button>`}</td></tr>`;
   });
   const grp=useGroups(d), groups=grp?orderGroups(d):[];
@@ -248,7 +248,9 @@ VIEWS.order = id => {
           <div class="grid" style="gap:12px">
             <div><div class="small muted b" style="margin-bottom:4px">Από</div><div class="row" style="flex-wrap:nowrap"><button type="button" class="dpbtn" data-act="o-dp" data-which="start" ${ro?'disabled':''}>${svg('cal')}${dpLabel(d.start)}</button><input type="time" data-o="startTime" value="${esc(d.startTime)}" ${ro?'disabled':''} style="width:120px;flex:none"></div></div>
             <div><div class="small muted b" style="margin-bottom:4px">Έως</div><div class="row" style="flex-wrap:nowrap"><button type="button" class="dpbtn" data-act="o-dp" data-which="end" ${ro?'disabled':''}>${svg('cal')}${dpLabel(d.end)}</button><input type="time" data-o="endTime" value="${esc(d.endTime)}" ${ro?'disabled':''} style="width:120px;flex:none"></div></div>
-            <div class="small muted">${tt.days} ${tt.days===1?'ημέρα':'ημέρες'} χρέωσης</div>
+            <div class="cdays"><span class="small muted">Ημέρες ημερολογίου: <b>${orderDays(d)}</b></span>
+              <label class="small row" style="gap:6px;flex-wrap:nowrap">Χρέωση <input type="number" min="1" step="1" data-o="chargeDays" value="${num(d.chargeDays)>0?num(d.chargeDays):''}" placeholder="${orderDays(d)}" ${ro?'disabled':''} class="${num(d.chargeDays)>0?'set':''}"> ημέρες${num(d.chargeDays)>0&&!ro?` <a href="#" data-act="o-days-reset" class="xs" title="Όσες λέει το ημερολόγιο">↺ ημερολόγιο</a>`:''}</label>
+              ${num(d.chargeDays)>0?`<div class="xs" style="color:#8a6a00">Χρεώνεις ${chargeDays(d)} ${chargeDays(d)===1?'ημέρα':'ημέρες'} αντί για ${orderDays(d)}</div>`:''}</div>
           </div></div>
       </div>
       <div class="card p0">
@@ -345,13 +347,15 @@ ON_CHANGE.push((el)=>{
   if(el.dataset.o){
     const k=el.dataset.o; if(['name','venue','notes','internalNotes'].includes(k)) return true;
     d[k] = ['discount','deposit'].includes(k) ? num(el.value) : el.value;
+    if(k==='chargeDays'){ const n=Math.round(num(el.value)); if(n>0) d.chargeDays=n; else delete d.chargeDays; }
     if(k==='start' && d.end<d.start) d.end=d.start;
     if(k==='end' && d.end<d.start) d.start=d.end;
     if(k==='customerId'){ const c=D.customers[el.value]; if(c && num(c.discount) && !num(d.discount)) d.discount=num(c.discount); }
     dirty(); return true;
   }
   if(el.dataset.ol!==undefined){ const l=d.lines[+el.dataset.ol]; const f=el.dataset.f; if(f==='name'||f==='note') return true;
-    l[f] = (f==='priceType'||f==='cat') ? el.value : (f==='qty'?Math.max(0,Math.round(num(el.value))):(f==='extraPrice'&&el.value===''?'':num(el.value)));
+    l[f] = (f==='priceType'||f==='cat') ? el.value : (f==='qty'?Math.max(0,Math.round(num(el.value))):f==='days'?(el.value===''||num(el.value)<1?'':Math.round(num(el.value))):(f==='extraPrice'&&el.value===''?'':num(el.value)));
+    if(f==='days'&&l.days==='') delete l.days;
     if(f==='qty'&&l.accOf) l.accManual=true; dirty(); return true; }
   return false;
 });
@@ -405,6 +409,8 @@ ENTER['o-add-code']=v=>{ const f=findCode(v); let p=f&&f.product;
   if(!p) return toast('Δεν βρέθηκε προϊόν: '+v, true);
   addProductLine(p.id); toast('+1 '+p.name); setTimeout(()=>{ const i=$('#oAdd'); if(i) i.focus(); },30); };
 ACT['o-cam-add']=()=>openCamera(code=>{ const f=findCode(code); if(f&&f.product){ addProductLine(f.product.id); toast('+1 '+f.product.name); } else toast('Άγνωστος κωδικός: '+code, true); }, 'Προσθήκη προϊόντων');
+ACT['o-days-reset']=(el,e)=>{ e&&e.preventDefault(); delete UI.draft.chargeDays; dirty(); };
+ACT['o-line-days-reset']=(el,e)=>{ e&&e.preventDefault(); const l=UI.draft.lines[+el.dataset.i]; if(l){ delete l.days; dirty(); } };
 ACT['o-grp-tog']=()=>{ const d=UI.draft; if(!d) return; d.groupCats=!useGroups(d); dirty(); };
 ACT['o-custom']=()=>{ UI.draft.lines.push({id:uid('ln'), pid:'', name:'', qty:1, price:0, priceType:'flat', discount:0}); dirty(); };
 ACT['o-line-del']=el=>{ UI.draft.lines.splice(+el.dataset.i,1); dirty(); };
@@ -641,7 +647,7 @@ function printOrderDoc(o, kind){
       const sub=[]; // μόνο οι σημειώσεις της γραμμής
       if(l.note) sub.push('<i>'+esc(l.note)+'</i>');
       return `<tr><td class="dn">${n}</td>${hasImg?`<td class="dimg">${img?`<img src="${esc(img)}" alt="">`:''}</td>`:''}<td><div class="dit">${esc(p?p.name:l.name)}</div><div class="dsub">${sub.join(' · ')}</div></td>
-        <td class="r">${num(l.qty)}</td><td class="r">${l.priceType==='flat'?'—':tt.days}</td><td class="r">${money(lineUnitPeriod(l,tt.days))}</td>${hasDisc?`<td class="r">${num(l.discount)?num(l.discount)+'%':''}</td>`:''}<td class="r b">${money(lineTotal(l,tt.days))}</td></tr>`; }).join('');
+        <td class="r">${num(l.qty)}</td><td class="r">${l.priceType==='flat'?'—':lineDays(l,o)}</td><td class="r">${money(lineUnitPeriod(l,lineDays(l,o)))}</td>${hasDisc?`<td class="r">${num(l.discount)?num(l.discount)+'%':''}</td>`:''}<td class="r b">${money(lineTotal(l,lineDays(l,d)))}</td></tr>`; }).join('');
     const crewList=(o.crew||[]).filter(a=>a.bill!==false&&crewCharge(a)>0);
     const crewRows=crewList.length?`<tr class="dsec"><td colspan="${5+(hasImg?1:0)+(hasDisc?1:0)+1}">Τεχνικό προσωπικό</td></tr>`+crewList.map(a=>{ const c=D.crew[a.cid]||{}; const b=c.payType||'day'; const qn=crewQty(b,a); n++;
       return `<tr><td class="dn">${n}</td>${hasImg?'<td></td>':''}<td><div class="dit">${esc(a.role||c.role||'Τεχνικός')}</div><div class="dsub">${wd(a.start)}${a.end&&a.end!==a.start?' → '+wd(a.end):''} · ${esc(a.from||'')}–${esc(a.to||'')}</div></td><td class="r">1</td><td class="r">${b==='flat'?'—':(b==='hour'?qn+' ώρ.':qn)}</td><td class="r">${money(crewCharge(a))}</td>${hasDisc?'<td></td>':''}<td class="r b">${money(crewCharge(a))}</td></tr>`; }).join(''):'';

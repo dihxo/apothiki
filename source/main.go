@@ -479,7 +479,7 @@ func techMerge(coll string, d, old Doc) Doc {
 	case "crew":
 		keep("cost", "rate", "idNumber", "birthDate", "notes")
 	case "orders":
-		keep("discount", "deposit", "vatRate", "payments", "total", "paid")
+		keep("discount", "deposit", "vatRate", "payments", "total", "paid", "chargeDays")
 		oldLines := map[string]map[string]any{}
 		if old != nil {
 			if ls, ok := old["lines"].([]any); ok {
@@ -497,7 +497,7 @@ func techMerge(coll string, d, old Doc) Doc {
 					continue
 				}
 				if ol := oldLines[fmt.Sprint(l["id"])]; ol != nil && fmt.Sprint(ol["pid"]) == fmt.Sprint(l["pid"]) {
-					for _, k := range []string{"price", "extraPrice", "discount", "priceType", "tiered"} {
+					for _, k := range []string{"price", "extraPrice", "discount", "priceType", "tiered", "days"} {
 						delete(l, k)
 						if v, ok := ol[k]; ok {
 							l[k] = v
